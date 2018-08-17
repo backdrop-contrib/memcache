@@ -115,12 +115,12 @@ class MemCacheDrupal implements DrupalCacheInterface {
    * @param string $cid
    *   The cache id of the item
    * @param mixed $cache
-   *   The cache item.
+   *   The cache item, which will be updated if needed.
    *
    * @return bool
    *   Whether the item is valid.
    */
-  protected function valid($cid, $cache) {
+  protected function valid($cid, &$cache) {
     if ($cache) {
       $cache_tables = isset($_SESSION['cache_flush']) ? $_SESSION['cache_flush'] : NULL;
       // Items that have expired are invalid.
