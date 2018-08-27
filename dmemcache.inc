@@ -317,16 +317,16 @@ function _dmemcache_get_pieces($item, $key, $bin = 'cache', $mc = NULL) {
     $keys[] = _dmemcache_key_piece($key, $id);
   }
 
-  // Retrieve all the pieces of data.
+  // Retrieve all the pieces of data and append them together.
   $pieces = dmemcache_get_multi($keys, $bin, $mc);
-  if (count($pieces) != $item->piece_count) {
-    // Some of the pieces don't exist, so our data cannot be reconstructed.
-    return FALSE;
-  }
-
-  // Append all of the pieces together.
   $data = '';
   foreach ($pieces as $piece) {
+    // The piece may be NULL if it didn't exist in memcache. If so,
+    // we have to just return false for the entire set because we won't
+    // be able to reconstruct the original data without all the pieces.
+    if (!$piece) {
+      return FALSE;
+    }
     $data .= $piece->data;
   }
   unset($pieces);
@@ -364,7 +364,8 @@ function _dmemcache_key_piece($key, $id) {
  *   The bin in which the item was stored.
  *
  * @return mixed
- *   The item which was originally saved or FALSE
+ *   An array keyed by $keys with the items requested or
+ *   NULL values if the data was not present.
  */
 function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
   $collect_stats = dmemcache_stats_init();
@@ -416,6 +417,8 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
   // If $results is FALSE, convert it to an empty array.
   if (!$results) {
     $results = array();
+    $keys = array_fill_keys($full_keys, NULL);
+    $results = array_merge($keys, $results);
     _dmemcache_write_debug('getMulti', $bin, implode(',', $full_keys), FALSE);
   }
 
