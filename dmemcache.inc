@@ -1261,7 +1261,7 @@ function _dmemcache_write_debug($action, $bin, $key, $rc) {
     $debug_log = strtr(variable_get('memcache_debug_log_format', "!timestamp|!action|!bin|!cid|!rc\n"), array('!timestamp' => date(variable_get('memcache_debug_time_format', 'U')), '!action' => $action, '!bin' => $bin, '!cid' => $key, '!rc' => (int) $rc));
     if (file_put_contents($memcache_debug_log, $debug_log, FILE_APPEND) === FALSE) {
       // This can lead to a lot of watchdog entries...
-      register_shutdown_function('watchdog', 'memcache', 'Unable to write to debug log at !debug_file: !debug_log.', array('!debug_file' => $memcache_debug_file, '!debug_log' => $debug_log), WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'Unable to write to debug log at !debug_file: !debug_log.', array('!debug_file' => $memcache_debug_log, '!debug_log' => $debug_log), WATCHDOG_ERROR);
     }
   }
 }
