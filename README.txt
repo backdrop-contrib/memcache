@@ -641,18 +641,20 @@ default options (selected through performance testing). These options will be
 set unless overridden in settings.php.
 
   $conf['memcache_options'] = array(
-    Memcached::OPT_COMPRESSION => FALSE,
     Memcached::OPT_DISTRIBUTION => Memcached::DISTRIBUTION_CONSISTENT,
   );
 
 These are as follows:
 
- * Turn off compression, as this takes more CPU cycles than it's worth for most
-   users
  * Turn on consistent distribution, which allows you to add/remove servers
    easily
 
 Other options you could experiment with:
+ + Memcached::OPT_COMPRESSION => FALSE,
+    * This disables compression in the Memcached extension. This may save some
+      CPU cost, but can result in significantly more data being transmitted and
+      stored. See: https://www.drupal.org/project/memcache/issues/2958403
+
  + Memcached::OPT_BINARY_PROTOCOL => TRUE,
     * This enables the Memcache binary protocol (only available in Memcached
       1.4 and later). Note that some users have reported SLOWER performance

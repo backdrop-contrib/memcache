@@ -756,7 +756,6 @@ function dmemcache_instance($bin = 'cache') {
       $memcache = new Memcached;
     }
     $default_opts = array(
-      Memcached::OPT_COMPRESSION => FALSE,
       Memcached::OPT_DISTRIBUTION => Memcached::DISTRIBUTION_CONSISTENT,
     );
     foreach ($default_opts as $key => $value) {
