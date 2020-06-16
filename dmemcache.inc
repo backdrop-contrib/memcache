@@ -622,7 +622,7 @@ function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggrega
           $stats[$bin] = $mc->getStats();
           // If a composite call fails, we need to reset the authentication
           // for the whole mc object.
-          if (empty($stats[$bin]) && _dmemcache_reset_authentication($bin)) {
+          if (empty($stats[$bin]) && _dmemcache_reset_authentication($mc)) {
             $stats[$bin] = $mc->getStats();
           }
         }
