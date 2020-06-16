@@ -11,6 +11,9 @@
  */
 
 define('MEMCACHED_E2BIG', 37);
+define('MEMCACHED_CLIENT_ERROR', 9);
+define('DRUPAL_MEMCACHE_AUTHENTICATION_KEY', 'drupal:memcache:authentication:key');
+define('DRUPAL_MEMCACHE_AUTHENTICATION_LIFETIME_KEY', 'drupal:memcache:authentication:lifetime:key');
 
 global $_dmemcache_stats;
 $_dmemcache_stats = array('all' => array(), 'ops' => array());
@@ -48,6 +51,10 @@ function dmemcache_set($key, $value, $exp = 0, $bin = 'cache', $mc = NULL) {
     if ($mc instanceof Memcached) {
       $rc = $mc->set($full_key, $value, $exp);
       if (empty($rc)) {
+        if ($mc->getResultCode() == MEMCACHED_CLIENT_ERROR && _dmemcache_ensure_authentication($full_key, $mc)) {
+          $rc = $mc->set($full_key, $value, $exp);
+        }
+
         // If there was a MEMCACHED_E2BIG error, split the value into pieces
         // and cache them individually.
         if ($mc->getResultCode() == MEMCACHED_E2BIG) {
@@ -237,6 +244,9 @@ function dmemcache_add($key, $value, $exp = 0, $bin = 'cache', $mc = NULL, $flag
   if ($mc || ($mc = dmemcache_object($bin))) {
     if ($mc instanceof Memcached) {
       $rc = $mc->add($full_key, $value, $exp);
+      if (empty($rc) && $mc->getResultCode() == MEMCACHED_CLIENT_ERROR && _dmemcache_ensure_authentication($full_key, $mc)) {
+        $rc = $mc->add($full_key, $value, $exp);
+      }
     }
     else {
       $rc = $mc->add($full_key, $value, $flag, $exp);
@@ -274,6 +284,14 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
     $php_errormsg = '';
 
     $result = @$mc->get($full_key);
+    if (empty($result) && $mc instanceof Memcached) {
+      // As sets are costly we first check that the server is not authorized first.
+      $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_AUTHENTICATION_LIFETIME_KEY);
+      if (empty($rc) && _dmemcache_ensure_authentication($full_key, $mc)) {
+        $result = @$mc->get($full_key);
+      }
+    }
+
     // This is a multi-part value.
     if (is_object($result) && !empty($result->multi_part_data)) {
       $result = _dmemcache_get_pieces($result->data, $result->cid, $bin, $mc);
@@ -393,6 +411,25 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
         $cas_tokens = NULL;
         $results = $mc->getMulti($full_keys, $cas_tokens, Memcached::GET_PRESERVE_ORDER);
       }
+
+      // If $results is FALSE, convert it to an empty array.
+      if (!$results) {
+        $results = array();
+      }
+
+      // Find out which results have values and which have not.
+      $filtered_results = array_filter($results);
+
+      if (count($filtered_results) < count($full_keys) && variable_get('memcache_authentication', FALSE)) {
+        // Convert empty results to the full keys with value of FALSE.
+        if (empty($results)) {
+          $results = array_fill_keys(array_values($full_keys), FALSE);
+        }
+        $new_results = _dmemcache_get_multi_2nd_chance_authentication($results, $mc);
+        foreach ($new_results as $full_key => $value) {
+          $results[$full_key] = $value;
+        }
+      }
     }
     elseif ($mc instanceof Memcache) {
       $track_errors = ini_set('track_errors', '1');
@@ -467,6 +504,9 @@ function dmemcache_delete($key, $bin = 'cache', $mc = NULL) {
   if ($mc || ($mc = dmemcache_object($bin))) {
     foreach ($full_keys as $fk) {
       $rc = $mc->delete($fk, 0);
+      if (empty($rc) && $mc instanceof Memcached && _dmemcache_ensure_authentication($fk, $mc)) {
+        $rc = $mc->delete($fk, 0);
+      }
 
       if ($rc) {
         // If the delete succeeded, we now check to see if this item has
@@ -542,6 +582,12 @@ function dmemcache_flush($bin = 'cache', $mc = NULL) {
   $rc = FALSE;
   if ($mc || ($mc = dmemcache_object($bin))) {
     $rc = $mc->flush();
+    if (empty($rc) && $mc instanceof Memcached && variable_get('memcache_authentication', FALSE)) {
+      // If a composite call fails, we need to reset the authentication
+      // for the whole bin.
+      _dmemcache_reset_authentication($bin);
+      $mc->flush();
+    }
   }
 
   if ($collect_stats) {
@@ -575,6 +621,12 @@ function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggrega
       if ($mc = dmemcache_object($bin)) {
         if ($mc instanceof Memcached) {
           $stats[$bin] = $mc->getStats();
+          if (empty($stats[$bin]) && variable_get('memcache_authentication', FALSE)) {
+            // If a composite call fails, we need to reset the authentication
+            // for the whole bin.
+            _dmemcache_reset_authentication($bin);
+            $stats[$bin] = $mc->getStats();
+          }
         }
         // The PHP Memcache extension 3.x version throws an error if the stats
         // type is NULL or not in {reset, malloc, slabs, cachedump, items,
@@ -797,6 +849,7 @@ function dmemcache_instance($bin = 'cache') {
  */
 function dmemcache_connect($memcache, $server, $weight) {
   static $memcache_persistent = NULL;
+  static $memcache_authentication = NULL;
 
   $extension = dmemcache_extension();
 
@@ -807,6 +860,13 @@ function dmemcache_connect($memcache, $server, $weight) {
 
   if (!isset($memcache_persistent)) {
     $memcache_persistent = variable_get('memcache_persistent', TRUE);
+  }
+  if (!isset($memcache_authentication)) {
+    $memcache_authentication = variable_get('memcache_authentication', FALSE);
+    if ($memcache_authentication && $extension == 'Memcache') {
+      register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication can only be used with Memcached extension', array(), WATCHDOG_ERROR);
+      $memcache_authentication = FALSE;
+    }
   }
 
   $port_error = FALSE;
@@ -853,6 +913,27 @@ function dmemcache_connect($memcache, $server, $weight) {
     }
     if (!$match) {
       $rc = $memcache->addServer($host, $port);
+      if ($rc && $memcache_authentication) {
+        // Find a working key that matches the just added server.
+        for ($key = 0; $key < 1000; $key++) {
+          // It's impossible to directly address a server, but we need to
+          // login to the newly added connection before it can be used.
+          // So we check all keys from 0 to 1000 if it would map to this new server.
+          // Once we have found one, we set the authentication data, because any key
+          // will work for authentication as the authentication data includes user and
+          // password.
+          $s = $memcache->getServerByKey($key);
+          if ($s['host'] == $host && $s['port'] == $port) {
+            _dmemcache_ensure_authentication($key, $memcache);
+            break;
+          }
+        }
+        // This should never happen.
+        if ($key == 1000) {
+          register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication could not find the server to authenticate to.', array(), WATCHDOG_ERROR);
+          $rc = FALSE;
+        }
+      }
     }
     else {
       $rc = TRUE;
@@ -1264,4 +1345,137 @@ function _dmemcache_write_debug($action, $bin, $key, $rc) {
       register_shutdown_function('watchdog', 'memcache', 'Unable to write to debug log at !debug_file: !debug_log.', array('!debug_file' => $memcache_debug_log, '!debug_log' => $debug_log), WATCHDOG_ERROR);
     }
   }
+}
+
+/**
+ * Ensures memcache connection is authorized for the server
+ * that is mapped for the given key.
+ *
+ * @param string $full_key
+ *   The full key for the item whose server is checked for authentication.
+ * @param object $mc
+ *   The memcache object.
+ *
+ * @return bool
+ *   TRUE if the connection is authorized, FALSE otherwise.
+ */
+function _dmemcache_ensure_authentication($full_key, $mc) {
+  static $memcache_authentication = NULL;
+
+  // Setup the static, ignore 'Memcache' extension.
+  if (!isset($memcache_authentication)) {
+    $memcache_authentication = variable_get('memcache_authentication', FALSE);
+    if ($memcache_authentication && $mc instanceof Memcache) {
+      $memcache_authentication = FALSE;
+    }
+  }
+
+  // Immediately return if there is no memcache authentication.
+  if (!$memcache_authentication) {
+    return FALSE;
+  }
+
+  // Login to the server.
+  $rc = $mc->setByKey($full_key, DRUPAL_MEMCACHE_AUTHENTICATION_KEY, $memcache_authentication);
+  if (!$rc) {
+    $s = $mc->getServerByKey($full_key);
+    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication failed to login to server: %server', array(
+      '%server' => $s['host'] . ':' . $s['port'],
+    ), WATCHDOG_ERROR);
+
+    return FALSE;
+  }
+
+  // Login was successful, check if our lifetime key exists already.
+  $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_AUTHENTICATION_LIFETIME_KEY);
+  if ($rc) {
+    return TRUE;
+  }
+
+  return $mc->setByKey($full_key, DRUPAL_MEMCACHE_AUTHENTICATION_LIFETIME_KEY, TRUE);
+}
+
+/**
+ * Checks if cache items are really missing or only missing authentication.
+ *
+ * This is essentially a cache miss and hence we would be going into a heavy
+ * code path anyway, therefore it is performance wise okay to check a special
+ * key that exists on all memcache servers to see if this is:
+ *
+ * a) real cache miss (where we need to do all the hard work)
+ * b) authentication failure (where we just need to login and then can hopefully
+ *    have a cache hit)
+ *
+ * The edge case of the special lifetime key not existing is treated as a real
+ * cache miss.
+ *
+ * This is justified by the case that most likely memcache was just restarted
+ * (else the lifetime key would not be missing) and hence the real cache request
+ * likely would have been a real cache miss anyway.
+ *
+ * @param array $results
+ *   The results array to check for a 2nd chance.
+ * @param object $mc
+ *   The memcache object.
+ */
+function _dmemcache_get_multi_2nd_chance_authentication($results, $mc) {
+  // Cache misses are very costly: Find out, if any servers need authentication.
+  $servers = array();
+  foreach ($results as $full_key => $value) {
+    if (!empty($value)) {
+      continue;
+    }
+
+    $s = $mc->getServerByKey($full_key);
+    $server_key = $s['host'] . ':' . $s['port'];
+    $servers[$server_key][$full_key] = $full_key;
+  }
+
+  if (empty($servers)) {
+    return array();
+  }
+
+  $try_again_full_keys = array();
+  foreach ($servers as $server_key => $full_keys) {
+    // Use the first key of the list as all keys map to this server.
+    $full_key = current($full_keys);
+
+    // Check if lifetime token exists and hence if we are authorized
+    // on this server.
+    $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_AUTHENTICATION_LIFETIME_KEY);
+    if (empty($rc) && _dmemcache_ensure_authentication($full_key, $mc)) {
+      // If we logged in after first failing a fetch for our lifetime key,
+      // then these keys need to be retried as the "not found" could have been
+      // an authentication failure.
+      $try_again_full_keys += $full_keys;
+    }
+  }
+
+  // In case no authentication succeeded, there will be no keys to get.
+  if (empty($try_again_full_keys)) {
+    return array();
+  }
+
+  $new_results = $mc->getMulti($try_again_full_keys);
+  if (empty($new_results)) {
+    return array();
+  }
+
+  return $new_results;
+}
+
+/**
+ * Resets the server lists and forces a re-login to all servers.
+ *
+ * @param string $bin
+ *   The bin to re-authenticate all connections on.
+ */
+function _dmemcache_reset_authentication($bin) {
+  $mc = dmemcache_object($bin);
+  // Need to quit all servers first as else there can be PHP segfaults.
+  $mc->quit();
+  $mc->resetServerList();
+
+  // Re-connect all the servers to the bin.
+  $mc = dmemcache_object($bin);
 }

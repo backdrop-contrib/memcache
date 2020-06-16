@@ -16,7 +16,14 @@ $mc = dmemcache_object('semaphore');
 // dmemcache_object may return FALSE, we don't need these stats but it forces
 // us to try and connect to memcache. If this fails, we can't store locks in
 // memcache.
-if (!$mc || !$mc->getStats()) {
+$connection_okay = $mc && !empty($mc->getStats());
+if (!$connection_okay && variable_get('memcache_authentication', FALSE)) {
+  // Reset the server list and try the getStats() call again.
+  _dmemcache_reset_authentication('semaphore');
+  $connection_okay = !empty($mc->getStats());
+}
+
+if (!$connection_okay) {
   $lock_file = DRUPAL_ROOT . '/includes/lock.inc';
 }
 require_once $lock_file;
