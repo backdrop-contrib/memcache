@@ -908,7 +908,7 @@ function dmemcache_connect($memcache, $server, $weight) {
     if (!$match) {
       $rc = $memcache->addServer($host, $port);
       if ($rc && $memcache_authentication) {
-        $rc = _dmemcache_authenticate_server($host, $port);
+        $rc = _dmemcache_authenticate_server($host, $port, $memcache);
       }
     }
     else {
@@ -1374,11 +1374,13 @@ function _dmemcache_ensure_authentication($full_key, $mc) {
  *   The hostname of the server to authenticate to.
  * @param int $port
  *   The port of the server to authenticate to.
+ * @param object $mc
+ *   The memcache object.
  *
  * @return bool
  *   TRUE on success, FALSE otherwise.
  */
-function _dmemcache_authenticate_server($host, $port) {
+function _dmemcache_authenticate_server($host, $port, $mc) {
   $rc = FALSE;
 
   // Find a working key that matches the specified server.
@@ -1389,9 +1391,9 @@ function _dmemcache_authenticate_server($host, $port) {
     // Once we have found one, we set the authentication data, because any key
     // will work for authentication as the authentication data includes user and
     // password.
-    $s = $memcache->getServerByKey($key);
+    $s = $mc->getServerByKey($key);
     if ($s['host'] == $host && $s['port'] == $port) {
-      $rc = _dmemcache_ensure_authentication($key, $memcache);
+      $rc = _dmemcache_ensure_authentication($key, $mc);
       break;
     }
   }
@@ -1497,7 +1499,7 @@ function _dmemcache_reset_authentication($mc) {
   // Need to check all servers for authentication.
   $servers = $mc->getServerList();
   foreach ($servers as $s) {
-    $rc = _dmemcache_authenticate_server($s['host'], $s['port']);
+    $rc = _dmemcache_authenticate_server($s['host'], $s['port'], $mc);
     if (!$rc) {
       return FALSE;
     }
