@@ -17,9 +17,9 @@ $mc = dmemcache_object('semaphore');
 // us to try and connect to memcache. If this fails, we can't store locks in
 // memcache.
 $connection_okay = $mc && !empty($mc->getStats());
-if (!$connection_okay && variable_get('memcache_authentication', FALSE)) {
-  // Reset the server list and try the getStats() call again.
-  _dmemcache_reset_authentication('semaphore');
+
+// Reset the server list and try the getStats() call again.
+if (!$connection_okay && _dmemcache_reset_authentication($mc)) {
   $connection_okay = !empty($mc->getStats());
 }
 
