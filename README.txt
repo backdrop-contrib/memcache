@@ -669,7 +669,11 @@ Other options you could experiment with:
       tells the TCP stack to send packets immediately and without waiting for
       a full payload, reducing per-packet network latency (disabling "Nagling").
 
-It's possible to enable SASL authentication as documented here:
+### Authentication
+
+#### Binary Protocol SASL Authentication
+
+SASL authentication can be enabled as documented here:
   http://php.net/manual/en/memcached.setsaslauthdata.php
   https://code.google.com/p/memcached/wiki/SASLHowto
 
@@ -685,6 +689,31 @@ memcache_sasl_username and memcache_sasl_password in settings.php. For example:
   );
   $conf['memcache_sasl_username'] = 'yourSASLUsername';
   $conf['memcache_sasl_password'] = 'yourSASLPassword';
+
+#### ASCII Protocol Authentication
+
+If you do not want to enable the binary protocol, you can instead enable
+token authentication with the default ASCII protocol.
+
+ASCII protocol authentication requires Memcached version 1.5.15 or greater
+started with the -Y flag, and the PECL memcached client. It was originally
+documented in the memcache 1.5.15 release notes:
+  https://github.com/memcached/memcached/wiki/ReleaseNotes1515
+
+Additional detail can be found in the protocol documentation:
+  https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+
+All your memcached servers need to be started with the -Y option to specify
+a local path to an authfile which can contain up to 8 "username:pasword"
+pairs, any of which can be used for authentication. For example, a simple
+authfile may look as follows:
+
+  foo:bar
+
+You can then configure your website to authenticate with this username and
+password as follows:
+
+  $conf['memcache_authentication'] = 'foo bar';
 
 ## Amazon Elasticache
 
