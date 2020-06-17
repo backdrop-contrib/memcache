@@ -19,7 +19,7 @@ $mc = dmemcache_object('semaphore');
 $connection_okay = $mc && !empty($mc->getStats());
 
 // Reset the server list and try the getStats() call again.
-if (!$connection_okay && _dmemcache_reset_authentication($mc)) {
+if (!$connection_okay && _dmemcache_reset_ascii_authentication($mc)) {
   $connection_okay = !empty($mc->getStats());
 }
 

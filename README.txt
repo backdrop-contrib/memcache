@@ -713,7 +713,7 @@ authfile may look as follows:
 You can then configure your website to authenticate with this username and
 password as follows:
 
-  $conf['memcache_authentication'] = 'foo bar';
+  $conf['memcache_ascii_auth'] = 'foo bar';
 
 ## Amazon Elasticache
 
