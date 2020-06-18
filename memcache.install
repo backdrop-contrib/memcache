@@ -7,6 +7,7 @@
 
 define('MEMCACHE_PECL_RECOMMENDED', '3.0.6');
 define('MEMCACHED_PECL_RECOMMENDED', '2.0.1');
+define('MEMCACHED_ASCII_AUTH_MINIMUM', '1.5.15');
 
 /**
  * Implements hook_enable().
@@ -25,7 +26,7 @@ function memcache_enable() {
     $error = TRUE;
   }
   else {
-    if (!_memcache_version_valid()) {
+    if (!_memcache_pecl_version_valid()) {
       $warning = TRUE;
     }
     // Make a test connection to all configured memcache servers.
@@ -105,13 +106,47 @@ function memcache_requirements($phase) {
       }
       $requirements['memcache_extension']['value'] = $version . _memcache_statistics_link();
 
-      if (!_memcache_version_valid()) {
+      if (!_memcache_pecl_version_valid()) {
         $warnings[] = $t('PECL !extension version %version is unsupported. Please update to %recommended or newer.', array(
           '!extension' => $extension,
           '%version' => $version,
           '%recommended' => $recommended,
         ));
       }
+
+      // If ASCII protocol authentication is enabled, perform extra tests.
+      if (_dmemcache_use_ascii_auth()) {
+        // Verify minimum required memcached version for ASCII protocol authentication is installed.
+        $version = _memcached_ascii_auth_version_valid();
+        if ($version !== TRUE) {
+          $errors[] = $t('ASCII protocol authentication is enabled but requires memcached v%minimum or greater. One or more memcached instances detected running memcache v%version.' . _memcache_statistics_link(), array(
+            '%version' => $version,
+            '%minimum' => MEMCACHED_ASCII_AUTH_MINIMUM,
+          ));
+        }
+
+        // Confirm ASCII authentication works on all memcached servers.
+        $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
+        foreach ($memcache_bins as $bin => $_) {
+          if ($mc = dmemcache_object($bin)) {
+            $ascii_auth =  _dmemcache_reset_ascii_auth($mc, TRUE);
+            if ($ascii_auth !== TRUE) {
+              if ($ascii_auth === FALSE) {
+                $errors[] = $t('ASCII protocol authentication failed.');
+              }
+              else {
+                $errors[] = $t('ASCII protocol authentication failed to %host:%port.' . _memcache_statistics_link(), array(
+                  '%host' => $ascii_auth['host'],
+                  '%port' => $ascii_auth['port'],
+                ));
+              }
+            }
+          }
+        }
+
+
+      }
+
 
       // Make a test connection to all configured memcache servers.
       $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
@@ -194,7 +229,7 @@ function _memcache_statistics_link() {
 /**
  * Validate whether the current PECL version is supported.
  */
-function _memcache_version_valid() {
+function _memcache_pecl_version_valid() {
   $extension = dmemcache_extension();
   if ($extension == 'Memcache') {
     return version_compare(phpversion('memcache'), MEMCACHE_PECL_RECOMMENDED, '>=');
@@ -202,6 +237,30 @@ function _memcache_version_valid() {
   elseif ($extension == 'Memcached') {
     return version_compare(phpversion('memcached'), MEMCACHED_PECL_RECOMMENDED, '>=');
   }
+}
+
+/**
+ * If ASCII protocol authentication is enabled, validate whether the current memcached
+ * version meets the minimum requirements.
+ */
+function _memcached_ascii_auth_version_valid() {
+  if (_dmemcache_use_ascii_auth()) {
+    $stats = dmemcache_stats();
+    foreach ($stats as $bin => $servers) {
+      if (!empty($servers)) {
+        foreach ($servers as $server => $value) {
+          $version = $value['version'];
+          if (version_compare(phpversion('memcache'), MEMCACHED_ASCII_AUTH_MINIMUM, '>=')) {
+            // Return detected unsupported version of memcached.
+            return $version;
+          }
+        }
+      }
+    }
+  }
+  // Fall through if no unsupported version of memcached was detected, or ascii auth is
+  // not enabled.
+  return TRUE;
 }
 
 /**

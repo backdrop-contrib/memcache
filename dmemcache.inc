@@ -1365,7 +1365,12 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
     return TRUE;
   }
 
-  return $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
+  // Set the lifetime key.
+  $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
+
+  // Confirm the lifetime key properly set, setByKey() can return success
+  // even when it fails.
+  return $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
 }
 
 /**
@@ -1486,7 +1491,7 @@ function _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc) {
  * @return bool
  *   TRUE on success, FALSE on failure.
  */
-function _dmemcache_reset_ascii_auth($mc) {
+function _dmemcache_reset_ascii_auth($mc, $return_failed_server = FALSE) {
   static $memcache_ascii_auth = NULL;
 
   if (!isset($memcache_ascii_auth)) {
@@ -1502,7 +1507,12 @@ function _dmemcache_reset_ascii_auth($mc) {
   foreach ($servers as $s) {
     $rc = _dmemcache_ascii_authenticate_server($s['host'], $s['port'], $mc);
     if (!$rc) {
-      return FALSE;
+      if ($return_failed_server) {
+        return $s;
+      }
+      else {
+        return FALSE;
+      }
     }
   }
 
