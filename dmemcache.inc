@@ -12,6 +12,7 @@
 
 define('MEMCACHED_E2BIG', 37);
 define('MEMCACHED_CLIENT_ERROR', 9);
+define('MEMCACHED_SERVER_TIMED_OUT', 47);
 define('DRUPAL_MEMCACHE_ASCII_AUTH_KEY', 'drupal:memcache:ascii:auth:key');
 define('DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY', 'drupal:memcache:ascii:auth:lifetime:key');
 
@@ -1338,9 +1339,11 @@ function _dmemcache_write_debug($action, $bin, $key, $rc) {
  */
 function _dmemcache_ensure_ascii_auth($full_key, $mc) {
   static $memcache_ascii_auth = NULL;
+  static $memcache_ascii_auth_token = NULL;
 
   if (!isset($memcache_ascii_auth)) {
     $memcache_ascii_auth = _dmemcache_use_ascii_auth();
+    $memcache_ascii_auth_token = variable_get('memcache_ascii_auth', FALSE);
   }
 
   // Immediately return if there is no memcache authentication.
@@ -1349,11 +1352,23 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
   }
 
   // Login to the server.
-  $rc = $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth);
+  $rc = $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth_token);
+  if (!$rc && $mc->getResultCode() == MEMCACHED_SERVER_TIMED_OUT) {
+    // Quitting is the only way to recover from this failure.
+    $mc->quit();
+    $rc = $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth_token);
+  }
   if (!$rc) {
+    $code = $mc->getResultCode();
+    $message = $mc->getResultMessage();
+    $t = explode(' ', $memcache_authentication_token);
     $s = $mc->getServerByKey($full_key);
-    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication failed to login to server: %server', array(
+
+    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication failed to login with user %user to server: %server; error code: %code with message %message', array(
       '%server' => $s['host'] . ':' . $s['port'],
+      '%user' => $t[0],
+      '%code' => $code,
+      '%message' => $message,
     ), WATCHDOG_ERROR);
 
     return FALSE;
@@ -1538,5 +1553,5 @@ function _dmemcache_use_ascii_auth() {
     }
   }
 
-  return $memcache_ascii_auth;
+  return (bool) $memcache_ascii_auth;
 }

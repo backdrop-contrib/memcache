@@ -8,6 +8,7 @@
 define('MEMCACHE_PECL_RECOMMENDED', '3.0.6');
 define('MEMCACHED_PECL_RECOMMENDED', '2.0.1');
 define('MEMCACHED_ASCII_AUTH_MINIMUM', '1.5.15');
+define('MEMCACHED_ASCII_AUTH_RECOMMENDED', '1.6.4');
 
 /**
  * Implements hook_enable().
@@ -117,12 +118,21 @@ function memcache_requirements($phase) {
       // If ASCII protocol authentication is enabled, perform extra tests.
       if (_dmemcache_use_ascii_auth()) {
         // Verify minimum required memcached version for ASCII protocol authentication is installed.
-        $version = _memcached_ascii_auth_version_valid();
+        $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_MINIMUM);
         if ($version !== TRUE) {
           $errors[] = $t('ASCII protocol authentication is enabled but requires memcached v%minimum or greater. One or more memcached instances detected running memcache v%version.' . _memcache_statistics_link(), array(
             '%version' => $version,
             '%minimum' => MEMCACHED_ASCII_AUTH_MINIMUM,
           ));
+        }
+        else {
+          $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_RECOMMENDED);
+          if ($version !== TRUE) {
+            $warnings[] = $t('Memcached v%recommended is recommended when using ASCII protocol authentication, to avoid a CPU race. One or more memcached instances detected are running memcache v%version.' . _memcache_statistics_link(), array(
+              '%version' => $version,
+              '%minimum' => MEMCACHED_ASCII_AUTH_RECOMMENDED,
+            ));
+          }
         }
 
         // Confirm ASCII authentication works on all memcached servers.
@@ -143,10 +153,7 @@ function memcache_requirements($phase) {
             }
           }
         }
-
-
       }
-
 
       // Make a test connection to all configured memcache servers.
       $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
@@ -241,18 +248,18 @@ function _memcache_pecl_version_valid() {
 
 /**
  * If ASCII protocol authentication is enabled, validate whether the current memcached
- * version meets the minimum requirements.
+ * version meets the minimum and/or recommended requirements.
  */
-function _memcached_ascii_auth_version_valid() {
+function _memcached_ascii_auth_version_valid($version) {
   if (_dmemcache_use_ascii_auth()) {
     $stats = dmemcache_stats();
     foreach ($stats as $bin => $servers) {
       if (!empty($servers)) {
         foreach ($servers as $server => $value) {
-          $version = $value['version'];
-          if (version_compare($version, MEMCACHED_ASCII_AUTH_MINIMUM, '<')) {
-            // Return detected unsupported version of memcached.
-            return $version;
+          $installed_version = $value['version'];
+          if (version_compare($installed_version, $version, '<')) {
+            // Return detected invalid version of memcached.
+            return $installed_version;
           }
         }
       }

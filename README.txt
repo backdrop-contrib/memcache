@@ -697,10 +697,14 @@ token authentication with the default ASCII protocol.
 
 ASCII protocol authentication requires Memcached version 1.5.15 or greater
 started with the -Y flag, and the PECL memcached client. It was originally
-documented in the memcache 1.5.15 release notes:
+documented in the memcached 1.5.15 release notes:
   https://github.com/memcached/memcached/wiki/ReleaseNotes1515
 
-Additional detail can be found in the protocol documentation:
+While it will work with 1.5.15 or greater, it's strongly recommended you
+use memcached 1.6.4 or greater due to the following bug fix:
+  https://github.com/memcached/memcached/wiki/ReleaseNotes164
+
+Additional detail about this feature can be found in the protocol documentation:
   https://github.com/memcached/memcached/blob/master/doc/protocol.txt
 
 All your memcached servers need to be started with the -Y option to specify
@@ -714,6 +718,9 @@ You can then configure your website to authenticate with this username and
 password as follows:
 
   $conf['memcache_ascii_auth'] = 'foo bar';
+
+Enabling ASCII protocol authentication during load testing resulted in ~1.25%
+overhead.
 
 ## Amazon Elasticache
 
