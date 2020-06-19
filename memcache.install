@@ -250,11 +250,14 @@ function _memcached_ascii_auth_version_valid() {
       if (!empty($servers)) {
         foreach ($servers as $server => $value) {
           $version = $value['version'];
-          if (version_compare(phpversion('memcache'), MEMCACHED_ASCII_AUTH_MINIMUM, '>=')) {
+          if (version_compare($version, MEMCACHED_ASCII_AUTH_MINIMUM, '<')) {
             // Return detected unsupported version of memcached.
             return $version;
           }
         }
+      }
+      else {
+        return FALSE;
       }
     }
   }
