@@ -130,7 +130,7 @@ function memcache_requirements($phase) {
           if ($version !== TRUE) {
             $warnings[] = $t('Memcached v%recommended is recommended when using ASCII protocol authentication, to avoid a CPU race. One or more memcached instances detected are running memcache v%version.' . _memcache_statistics_link(), array(
               '%version' => $version,
-              '%minimum' => MEMCACHED_ASCII_AUTH_RECOMMENDED,
+              '%recommended' => MEMCACHED_ASCII_AUTH_RECOMMENDED,
             ));
           }
         }
@@ -139,17 +139,16 @@ function memcache_requirements($phase) {
         $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
         foreach ($memcache_bins as $bin => $_) {
           if ($mc = dmemcache_object($bin)) {
-            $ascii_auth =  _dmemcache_reset_ascii_auth($mc, TRUE);
+            $ascii_auth =  _dmemcache_check_ascii_auth($mc);
             if ($ascii_auth !== TRUE) {
-              if ($ascii_auth === FALSE) {
-                $errors[] = $t('ASCII protocol authentication failed.');
-              }
-              else {
-                $errors[] = $t('ASCII protocol authentication failed to %host:%port.' . _memcache_statistics_link(), array(
-                  '%host' => $ascii_auth['host'],
-                  '%port' => $ascii_auth['port'],
-                ));
-              }
+              $s = $ascii_auth[0];
+              $message = $ascii_auth[1];
+
+              $errors[] = $t('ASCII protocol authentication failed with message %message to %host:%port.' . _memcache_statistics_link(), array(
+                '%host' => $s['host'],
+                '%port' => $s['port'],
+                '%message' => $message,
+              ));
             }
           }
         }
@@ -272,6 +271,40 @@ function _memcached_ascii_auth_version_valid($version) {
   // not enabled.
   return TRUE;
 }
+
+/**
+ * Check that ascii authentication is setup correctly.
+ *
+ * @param string $memcache_original
+ *   The memcache object whose servers will be checked.
+ *
+ * @return TRUE|array
+ *   TRUE on success, the failed server and the error message
+ *   on failure.
+ */
+function _dmemcache_check_ascii_auth($memcache_original) {
+  $servers = $memcache_original->getServerList();
+  foreach ($servers as $s) {
+    // Note: This intentionally does not use a persistent id.
+    $mc = new Memcached();
+    $mc->addServer($s['host'], $s['port']);
+
+    // Check that a set() / get() with a fresh connection fails.
+    $mc->set(DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
+    $rc = $mc->get(DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+    if ($rc) {
+      return [$s, t('Server is not protected by ascii authentication.')];
+    }
+
+    $rc = _dmemcache_ensure_ascii_auth("0", $mc);
+    if (!$rc) {
+      return [$s, t('Ascii authentication failed to authenticate.')];
+    }
+  }
+
+  return TRUE;
+}
+
 
 /**
  * Remove the memcache_widlcard_flushes variable since its structure has changed.

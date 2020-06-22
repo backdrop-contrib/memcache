@@ -275,6 +275,8 @@ function dmemcache_add($key, $value, $exp = 0, $bin = 'cache', $mc = NULL, $flag
  *   The item which was originally saved or FALSE
  */
 function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
+  static $memcache_ascii_auth = NULL;
+
   $collect_stats = dmemcache_stats_init();
 
   $result = FALSE;
@@ -285,11 +287,16 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
     $php_errormsg = '';
 
     $result = @$mc->get($full_key);
-    if (empty($result) && _dmemcache_use_ascii_auth()) {
-      // As sets are costly we first check that the server is not authorized first.
-      $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
-      if (empty($rc) && _dmemcache_ensure_ascii_auth($full_key, $mc)) {
-        $result = @$mc->get($full_key);
+    if (empty($result)) {
+      if (!isset($memcache_ascii_auth)) {
+        $memcache_ascii_auth = _dmemcache_use_ascii_auth();
+      }
+      if ($memcache_ascii_auth) {
+        // As sets are costly we first check that the server is not authorized first.
+        $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+        if (empty($rc) && _dmemcache_ensure_ascii_auth($full_key, $mc)) {
+          $result = @$mc->get($full_key);
+        }
       }
     }
 
@@ -387,6 +394,8 @@ function _dmemcache_key_piece($key, $id) {
  *   NULL values if the data was not present.
  */
 function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
+  static $memcache_ascii_auth = NULL;
+
   $collect_stats = dmemcache_stats_init();
   $multi_stats = array();
 
@@ -418,10 +427,12 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
         $results = array();
       }
 
-      // Find out which results have values and which have not.
-      $filtered_results = array_filter($results);
+      if (!isset($memcache_ascii_auth)) {
+        $memcache_ascii_auth = _dmemcache_use_ascii_auth();
+      }
 
-      if (count($filtered_results) < count($full_keys) && _dmemcache_use_ascii_auth()) {
+      // Find out which results have values and which have not.
+      if ($memcache_ascii_auth && array_filter($results) < count($full_keys)) {
         // Convert empty results to the full keys with value of FALSE.
         if (empty($results)) {
           $results = array_fill_keys(array_values($full_keys), FALSE);
@@ -1506,7 +1517,7 @@ function _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc) {
  * @return bool
  *   TRUE on success, FALSE on failure.
  */
-function _dmemcache_reset_ascii_auth($mc, $return_failed_server = FALSE) {
+function _dmemcache_reset_ascii_auth($mc) {
   static $memcache_ascii_auth = NULL;
 
   if (!isset($memcache_ascii_auth)) {
@@ -1522,12 +1533,7 @@ function _dmemcache_reset_ascii_auth($mc, $return_failed_server = FALSE) {
   foreach ($servers as $s) {
     $rc = _dmemcache_ascii_authenticate_server($s['host'], $s['port'], $mc);
     if (!$rc) {
-      if ($return_failed_server) {
-        return $s;
-      }
-      else {
-        return FALSE;
-      }
+      return FALSE;
     }
   }
 
