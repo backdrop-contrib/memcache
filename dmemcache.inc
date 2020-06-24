@@ -432,7 +432,7 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
       }
 
       // Find out which results have values and which have not.
-      if ($memcache_ascii_auth && array_filter($results) < count($full_keys)) {
+      if ($memcache_ascii_auth && count(array_filter($results)) < count($full_keys)) {
         // Convert empty results to the full keys with value of FALSE.
         if (empty($results)) {
           $results = array_fill_keys(array_values($full_keys), FALSE);
@@ -1372,7 +1372,7 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
   if (!$rc) {
     $code = $mc->getResultCode();
     $message = $mc->getResultMessage();
-    $t = explode(' ', $memcache_authentication_token);
+    $t = explode(' ', $memcache_ascii_auth_token);
     $s = $mc->getServerByKey($full_key);
 
     register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication failed to login with user %user to server: %server; error code: %code with message %message', array(

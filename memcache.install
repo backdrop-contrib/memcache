@@ -119,7 +119,8 @@ function memcache_requirements($phase) {
       if (_dmemcache_use_ascii_auth()) {
         // Verify minimum required memcached version for ASCII protocol authentication is installed.
         $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_MINIMUM);
-        if ($version !== TRUE) {
+        // TRUE means version valid, FALSE means we failed to connect and will throw a different error.
+        if ($version !== TRUE && $version !== FALSE) {
           $errors[] = $t('ASCII protocol authentication is enabled but requires memcached v%minimum or greater. One or more memcached instances detected running memcache v%version.' . _memcache_statistics_link(), array(
             '%version' => $version,
             '%minimum' => MEMCACHED_ASCII_AUTH_MINIMUM,
@@ -127,7 +128,8 @@ function memcache_requirements($phase) {
         }
         else {
           $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_RECOMMENDED);
-          if ($version !== TRUE) {
+          // TRUE means version valid, FALSE means we failed to connect and will throw a different error.
+          if ($version !== TRUE && $version !== FALSE) {
             $warnings[] = $t('Memcached v%recommended is recommended when using ASCII protocol authentication, to avoid a CPU race. One or more memcached instances detected are running memcache v%version.' . _memcache_statistics_link(), array(
               '%version' => $version,
               '%recommended' => MEMCACHED_ASCII_AUTH_RECOMMENDED,
@@ -139,12 +141,12 @@ function memcache_requirements($phase) {
         $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
         foreach ($memcache_bins as $bin => $_) {
           if ($mc = dmemcache_object($bin)) {
-            $ascii_auth =  _dmemcache_check_ascii_auth($mc);
+            $ascii_auth = _check_ascii_auth($mc);
             if ($ascii_auth !== TRUE) {
               $s = $ascii_auth[0];
               $message = $ascii_auth[1];
 
-              $errors[] = $t('ASCII protocol authentication failed with message %message to %host:%port.' . _memcache_statistics_link(), array(
+              $errors[] = $t('ASCII protocol authentication failed: %message (%host:%port).' . _memcache_statistics_link(), array(
                 '%host' => $s['host'],
                 '%port' => $s['port'],
                 '%message' => $message,
@@ -282,7 +284,7 @@ function _memcached_ascii_auth_version_valid($version) {
  *   TRUE on success, the failed server and the error message
  *   on failure.
  */
-function _dmemcache_check_ascii_auth($memcache_original) {
+function _check_ascii_auth($memcache_original) {
   $servers = $memcache_original->getServerList();
   foreach ($servers as $s) {
     // Note: This intentionally does not use a persistent id.
@@ -293,12 +295,12 @@ function _dmemcache_check_ascii_auth($memcache_original) {
     $mc->set(DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
     $rc = $mc->get(DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
     if ($rc) {
-      return [$s, t('Server is not protected by ascii authentication.')];
+      return [$s, t('ASCII authentication not enabled on server')];
     }
 
     $rc = _dmemcache_ensure_ascii_auth("0", $mc);
     if (!$rc) {
-      return [$s, t('Ascii authentication failed to authenticate.')];
+      return [$s, t('ASCII authentication failed')];
     }
   }
 
