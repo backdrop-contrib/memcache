@@ -433,9 +433,9 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
 
       // Find out which results have values and which have not.
       if ($memcache_ascii_auth && count(array_filter($results)) < count($full_keys)) {
-        // Convert empty results to the full keys with value of FALSE.
+        // Convert empty results to the full keys with value of NULL.
         if (empty($results)) {
-          $results = array_fill_keys(array_values($full_keys), FALSE);
+          $results = array_fill_keys($full_keys, NULL);
         }
         $new_results = _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc);
         foreach ($new_results as $full_key => $value) {
