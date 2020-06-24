@@ -30,6 +30,22 @@ function memcache_enable() {
     if (!_memcache_pecl_version_valid()) {
       $warning = TRUE;
     }
+    // If ASCII protocol authentication is enabled, perform extra tests.
+    if (_dmemcache_use_ascii_auth()) {
+      // Verify minimum required memcached version for ASCII protocol authentication is installed.
+      $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_MINIMUM);
+      // TRUE means version valid, FALSE means we failed to connect and will throw a different error.
+      if ($version !== TRUE && $version !== FALSE) {
+        $error = TRUE;
+      }
+      else {
+        $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_RECOMMENDED);
+        // TRUE means version valid, FALSE means we failed to connect and will throw a different error.
+        if ($version !== TRUE && $version !== FALSE) {
+          $warning = TRUE;
+        }
+      }
+    }
     // Make a test connection to all configured memcache servers.
     $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
     foreach ($memcache_servers as $server => $bin) {
