@@ -951,33 +951,26 @@ function dmemcache_close($memcache) {
  *
  * @param string $bin
  *   The bin which is to be used.
- * @param bool $flush
- *   Defaults to FALSE. Rebuild the bin/server/cache mapping.
+ * @param bool $reset
+ *   If TRUE will reset all static caches. Defaults to FALSE.
+ *   To force a reconnection to memcached, first call $mc->quit() or
+ *   $mc->close() (as appropriate for your PECL extension).
  *
  * @return mixed
  *   A Memcache object, or FALSE on failure.
  */
-function dmemcache_object($bin = NULL, $flush = FALSE) {
+function dmemcache_object($bin = NULL, $reset = FALSE) {
   static $memcache_cache = array();
   static $memcache_servers = array();
   static $memcache_bins = array();
   static $failed_connections = array();
 
-  if ($flush) {
-    if (!empty($memcache_cache)) {
-      foreach ($memcache_cache as $cluster) {
-        if ($extension == 'Memcache' && $cluster instanceof Memcache) {
-          $rc = @$cluster->close;
-        }
-        elseif ($extension == 'Memcached' && $cluster instanceof Memcached) {
-          $rc = @$cluster->quit;
-        }
-        $memcache_cache = array();
-      }
-    }
+  if ($reset) {
+    $memcache_cache = array();
+    $memcache_servers = array();
+    $memcache_bins = array();
+    $failed_connections = array();
   }
-
-  $extension = dmemcache_extension();
 
   if (empty($memcache_cache) || empty($memcache_cache[$bin])) {
     if (empty($memcache_servers)) {
