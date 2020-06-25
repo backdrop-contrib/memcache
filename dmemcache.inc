@@ -602,7 +602,7 @@ function dmemcache_flush($bin = 'cache', $mc = NULL) {
     dmemcache_stats_write('flush', $bin, array('' => $rc));
   }
 
-  _dmemcache_write_debug('flush', $bin, $full_key, $rc);
+  _dmemcache_write_debug('flush', $bin, '', $rc);
 
   return $rc;
 }
@@ -616,6 +616,9 @@ function dmemcache_flush($bin = 'cache', $mc = NULL) {
  *   The type of statistics to retrieve when using the Memcache extension.
  * @param bool $aggregate
  *   Whether to aggregate statistics.
+ *
+ * @return array
+ *   The statistics
  */
 function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggregate = FALSE) {
   $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
@@ -1301,7 +1304,9 @@ function dmemcache_stats_write($action, $bin, $keys) {
  *   The action being performed (get, set, etc...).
  * @param string $bin
  *   The memcache bin the action is being performed in.
- * @param array $rc
+ * @param string $key
+ *   The key on which the action is being performed on.
+ * @param bool $rc
  *   The return code of the action performed.
  */
 function _dmemcache_write_debug($action, $bin, $key, $rc) {
@@ -1314,7 +1319,7 @@ function _dmemcache_write_debug($action, $bin, $key, $rc) {
   if (($action == 'get' || $action == 'getMulti') && !$memcache_debug_verbose) {
     return;
   }
-  else if ($memcache_debug_log) {
+  elseif ($memcache_debug_log) {
     $debug_log = strtr(variable_get('memcache_debug_log_format', "!timestamp|!action|!bin|!cid|!rc\n"), array('!timestamp' => date(variable_get('memcache_debug_time_format', 'U')), '!action' => $action, '!bin' => $bin, '!cid' => $key, '!rc' => (int) $rc));
     if (file_put_contents($memcache_debug_log, $debug_log, FILE_APPEND) === FALSE) {
       // This can lead to a lot of watchdog entries...
