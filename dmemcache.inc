@@ -667,21 +667,12 @@ function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggrega
   }
   // Optionally calculate a sum-total for all servers in the current bin.
   if ($aggregate) {
-    // Some variables don't logically aggregate.
-    $no_aggregate = array(
-      'pid',
-      'time',
-      'version',
-      'pointer_size',
-      'accepting_conns',
-      'listen_disabled_num',
-    );
     foreach ($stats as $bin => $servers) {
       if (is_array($servers)) {
         foreach ($servers as $server) {
           if (is_array($server)) {
             foreach ($server as $key => $value) {
-              if (!in_array($key, $no_aggregate)) {
+              if (is_numeric($value)) {
                 if (isset($stats[$bin]['total'][$key])) {
                   $stats[$bin]['total'][$key] += $value;
                 }
