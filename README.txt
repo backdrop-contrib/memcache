@@ -719,8 +719,8 @@ password as follows:
 
   $conf['memcache_ascii_auth'] = 'foo bar';
 
-Enabling ASCII protocol authentication during load testing resulted in ~1.25%
-overhead.
+Enabling ASCII protocol authentication during load testing resulted in less than
+1% overhead.
 
 ## Amazon Elasticache
 
