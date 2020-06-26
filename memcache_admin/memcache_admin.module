@@ -594,7 +594,7 @@ function theme_memcache_admin_stats_raw_table($variables) {
       }
     }
   }
-  $output = !empty($links) ? implode($links, ' | ') : '';
+  $output = !empty($links) ? implode(' | ', $links) : '';
 
   $headers = array(t('Property'), t('Value'));
   $rows = array();
