@@ -283,7 +283,8 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
 
   $full_key = dmemcache_key($key, $bin);
   if ($mc || $mc = dmemcache_object($bin)) {
-    error_clear_last();
+    $track_errors = ini_set('track_errors', '1');
+    $php_errormsg = '';
 
     $result = @$mc->get($full_key);
     if (empty($result)) {
@@ -304,11 +305,11 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
       $result = _dmemcache_get_pieces($result->data, $result->cid, $bin, $mc);
     }
 
-    $error = error_get_last();
-    if (!empty($error)) {
-      register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get (file: !file line: !line): !msg', array('!msg' => $error['message'], '!file' => $error['file'], '!line' => $error['line']), WATCHDOG_WARNING);
-      error_clear_last();
+    if (!empty($php_errormsg)) {
+      register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get: !msg', array('!msg' => $php_errormsg), WATCHDOG_WARNING);
+      $php_errormsg = '';
     }
+    ini_set('track_errors', $track_errors);
   }
 
   if ($collect_stats) {
@@ -443,14 +444,16 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
       }
     }
     elseif ($mc instanceof Memcache) {
-      error_clear_last();
+      $track_errors = ini_set('track_errors', '1');
+      $php_errormsg = '';
 
       $results = @$mc->get($full_keys);
 
-      $error = error_get_last();
-      if (!empty($error)) {
-        register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get_multi (file: !file line: !line): !msg', array('!msg' => $error['message'], '!file' => $error['file'], '!line' => $error['line']), WATCHDOG_WARNING);
+      if (!empty($php_errormsg)) {
+        register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get_multi: !msg', array('!msg' => $php_errormsg), WATCHDOG_WARNING);
+        $php_errormsg = '';
       }
+      ini_set('track_errors', $track_errors);
 
       // Order is not guaranteed, map responses to order of requests.
       if (is_array($results)) {

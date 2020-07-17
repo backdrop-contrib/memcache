@@ -7,11 +7,12 @@ the 6.x-1.x version of this module!
 
 ## REQUIREMENTS ##
 
-- PHP 5.2 or greater
+- PHP 5.1 or greater
 - Availability of a memcached daemon: http://memcached.org/
 - One of the two PECL memcache packages:
   - http://pecl.php.net/package/memcache (recommended)
-  - http://pecl.php.net/package/memcached
+  - http://pecl.php.net/package/memcached (latest versions require PHP 5.2 or
+    greater)
 
 ## INSTALLATION ##
 
