@@ -363,6 +363,22 @@ class MemCacheDrupal implements DrupalCacheInterface {
           $cache_bins[$this->bin] = $this->cache_flush;
           $_SESSION['cache_flush'] = $cache_bins;
         }
+
+        // The entire bin was flushed, remove any wildcard flushes as they are no
+        // longer relevant.
+        if (isset($this->wildcard_flushes[$this->bin])) {
+          // It is possible for multiple bins to be flushed during a single
+          // page load, so cache the list in a static variable which is later
+          // read in the flushBinsOnShutdown callback during shutdown.
+          $bins_flushed = &drupal_static('memcache_bins_flushed', array());
+          if (empty($bins_flushed)) {
+            // Only register the shutdown function once, on the first bin
+            // flushed during this page load.
+            register_shutdown_function(array('MemCacheDrupal', 'flushBinsOnShutdown'));
+          }
+          // Add to the list of bins that have been flushed.
+          $bins_flushed[] = $this->bin;
+        }
       }
       else {
         // Register a wildcard flush for current cid.
@@ -375,6 +391,24 @@ class MemCacheDrupal implements DrupalCacheInterface {
         dmemcache_delete($cid, $this->bin, $this->memcache);
       }
     }
+  }
+
+  /**
+   * Cleanup wilcard flushes on shutdown when one or more bins are flushed.
+   */
+  static function flushBinsOnShutdown() {
+    // Get a fresh copy of the wildcard_flushes variable.
+    $wildcard_flushes = variable_get('memcache_wildcard_flushes', array());
+    // Load the static variable that was populated during clear().
+    $bins_flushed = &drupal_static('memcache_bins_flushed', array());
+    // Step through each bin and fully remove it from wildcard_flushes.
+    foreach ($bins_flushed as $bin) {
+      if (isset($wildcard_flushes[$bin])) {
+        unset($wildcard_flushes[$bin]);
+      }
+    }
+    // Store the memcache_wildcard_flushes variable without the flushed bins.
+    variable_set('memcache_wildcard_flushes', $wildcard_flushes);
   }
 
   /**
