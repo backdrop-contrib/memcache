@@ -269,7 +269,7 @@ function _memcache_pecl_version_valid() {
     // it will require a replacement for version_compare().
     $full_version = phpversion('memcache');
     $version = implode('.', array_slice(explode('.', $full_version), 0, 3));
-    if (version_compare(phpversion(), '7'. '>=')) {
+    if (version_compare(phpversion(), '7', '>=')) {
       return version_compare($version, MEMCACHE_PECL_PHP7_RECOMMENDED, '>=');
     }
     else {
