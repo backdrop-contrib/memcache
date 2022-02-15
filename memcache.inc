@@ -150,29 +150,29 @@ class MemCacheDrupal implements DrupalCacheInterface {
       // items that expired before present time.
       $cache_timestamp_expired = variable_get('memcache_expire_wait_gc', FALSE) ? ($cache->expire + $this->cache_lifetime <= $this->cache_temporary_flush) : ($cache->expire <= REQUEST_TIME);
 
+      // Items created before the last full wildcard flush against this bin are
+      // always invalid.
+      if ($cache->created <= $this->cache_flush) {
+        $cache = FALSE;
+      }
       // Test for expired items.
-      if (($cache->expire == CACHE_TEMPORARY && $cache_garbage_collected) || ($cache->expire > 0 && $cache_timestamp_expired)) {
+      elseif (($cache->expire == CACHE_TEMPORARY && $cache_garbage_collected) || ($cache->expire > 0 && $cache_timestamp_expired)) {
         // If the memcache_stampede_protection variable is set, allow one
         // process to rebuild the cache entry while serving expired content to
         // the rest. Note that core happily returns expired cache items as valid
         // and relies on cron to expire them, but this is mostly reliant on its
         // use of CACHE_TEMPORARY which does not map well to memcache.
         // @see http://drupal.org/node/534092
-        if (variable_get('memcache_stampede_protection', FALSE)) {
+        if (variable_get('memcache_stampede_protection', FALSE) && $this->stampedeProtected($cid)) {
           // The process that acquires the lock will get a cache miss, all
           // others will get a cache hit.
-          if ($this->lockInit() && $this->stampedeProtected($cid) && lock_acquire("memcache_$cid:$this->bin", variable_get('memcache_stampede_semaphore', 15))) {
+          if ($this->lockInit() && lock_acquire("memcache_$cid:$this->bin", variable_get('memcache_stampede_semaphore', 15))) {
             $cache = FALSE;
           }
         }
         else {
           $cache = FALSE;
         }
-      }
-      // Items created before the last full wildcard flush against this bin are
-      // invalid.
-      elseif ($cache->created <= $this->cache_flush) {
-        $cache = FALSE;
       }
       // Items created before the last content flush on this bin i.e.
       // cache_clear_all() are invalid.
