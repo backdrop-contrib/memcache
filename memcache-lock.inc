@@ -24,6 +24,6 @@ if (!$connection_okay && $mc && _dmemcache_reset_ascii_auth($mc)) {
 }
 
 if (!$connection_okay) {
-  $lock_file = DRUPAL_ROOT . '/includes/lock.inc';
+  $lock_file = BACKDROP_ROOT . '/includes/lock.inc';
 }
 require_once $lock_file;

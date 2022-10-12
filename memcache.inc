@@ -122,9 +122,8 @@ class BackdropMemcache implements BackdropCacheInterface {
         // If the memcache_stampede_protection variable is set, allow one
         // process to rebuild the cache entry while serving expired content to
         // the rest. Note that core happily returns expired cache items as valid
-        // and relies on cron to expire them, but this is mostly reliant on its
+        // and relies on cron to delete them, but this is mostly reliant on its
         // use of CACHE_TEMPORARY which does not map well to memcache.
-        // @see http://drupal.org/node/534092
         if (settings_get('memcache_stampede_protection', FALSE) && $this->stampedeProtected($cid)) {
           // The process that acquires the lock will get a cache miss, all
           // others will get a cache hit.
@@ -136,8 +135,7 @@ class BackdropMemcache implements BackdropCacheInterface {
           $cache = FALSE;
         }
       }
-      // Items created before the last content flush on this bin i.e.
-      // cache_clear_all() are invalid.
+      // Items created before the last content flush on this bin are invalid.
       elseif ($cache->expire != CACHE_PERMANENT && $cache->created <= $this->cache_content_flush) {
         $cache = FALSE;
       }
@@ -182,7 +180,7 @@ class BackdropMemcache implements BackdropCacheInterface {
       if ($valid) {
         $header .= t(', age=!age', array('!age' => REQUEST_TIME - $cache->created));
       }
-      header ($header);
+      header($header);
     }
 
     return $valid;

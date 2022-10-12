@@ -48,21 +48,18 @@ is important.
    the module.
 8. Bring your site back online.
 
-bee and drush CLIs
-------------------
+Basic Configuration
+-------------------
 
-This module provides both bee and drush CLI support. Either tool may be used to
-execute the following commands:
+For simple configurations with a single web server and memcached running on the
+same machine, this configuration is the most typical:
 
 ```
-memcache-flush (mcf)  Flush all Memcached objects in a bin.
-memcache-stats (mcs)  Retrieve statistics from Memcached.
-```
-
-For more information about each command, use  the `help` commands. For example:
-```
-bee help mcf
-drush help mcf
+$settings['cache_backends'][] = 'modules/memcache/memcache.inc';
+$settings['cache_default_class'] = 'BackdropMemcache';
+$settings['lock_inc'] = 'modules/memcache/memcache-lock.inc';
+$settings['memcache_stampede_protection'] = TRUE;
+$settings['memcache_servers'] = array('localhost:11211' => 'default');
 ```
 
 Advanced Configuration
@@ -126,6 +123,31 @@ The bin/cluster/server model can be described as follows:
 
 - The default cluster is 'default'.
 
+Memcache Admin
+--------------
+
+The "Memcache Admin" sub-module included in this project provides a UI that
+shows the memcache activity on a per-page basis, similar to Devel module's
+database query log. This module is not necessary (or recommended) to run in
+production environments.
+
+bee and drush CLIs
+------------------
+
+This module provides both bee and drush CLI support. Either tool may be used to
+execute the following commands:
+
+```
+memcache-flush (mcf)  Flush all Memcached objects in a bin.
+memcache-stats (mcs)  Retrieve statistics from Memcached.
+```
+
+For more information about each command, use  the `help` commands. For example:
+```
+bee help mcf
+drush help mcf
+```
+
 Locking
 -------
 
@@ -137,7 +159,7 @@ core. To enable, define the following in your settings.php:
 $settings['lock_inc'] = 'modules/memcache/memcache-lock.inc';
 ```
 
-Locks are written in the 'semaphore' table, which will map to the 'default'
+Locks are written in the 'semaphore' bin, which will map to the 'default'
 memcache cluster unless you explicitly configure a 'semaphore' cluster.
 
 Stampede Protection
@@ -247,97 +269,6 @@ $settings['memcache_persistent'] = FALSE;
 This setting works independently from stampede support, though it changes the
 time at which timestamp-cached items are considered expired, and therefore
 affects the time at which stampede behavior happens (if enabled).
-
-## EXAMPLES ##
-
-Example 1:
-
-First, the most basic configuration which consists of one memcached instance
-running on localhost port 11211 and all caches except for cache_form being
-stored in memcache. We also enable stampede protection, and the memcache
-locking mechanism. Finally, we tell Backdrop to not bootstrap the database when
-serving cached pages to anonymous visitors.
-
-```
-$settings['cache_backends'][] = 'modules/memcache/memcache.inc';
-$settings['lock_inc'] = 'modules/memcache/memcache-lock.inc';
-$settings['memcache_stampede_protection'] = TRUE;
-$settings['cache_default_class'] = 'BackdropMemcache';
-```
-
-Note that no servers or bins are defined.  The default server and bin
-configuration which is used in this case is equivalent to setting:
-
-```
-$settings['memcache_servers'] = array('localhost:11211' => 'default');
-```
-
-
-Example 2:
-
-In this example we define three memcached instances, two accessed over the
-network, and one on a Unix socket -- please note this is only an illustration of
-what is possible, and is not a recommended configuration as it's highly unlikely
-you'd want to configure memcache to use both sockets and network addresses like
-this, instead you'd consistently use one or the other.
-
-The instance on port 11211 belongs to the 'default' cluster where everything
-gets cached that isn't otherwise defined. (We refer to it as a "cluster", but in
-this example our "clusters" involve only one instance.) The instance on port
-11212 belongs to the 'pages' cluster, with the 'cache_page' table mapped to
-it -- so the Backdrop page cache is stored in this cluster.  Finally, the instance
-listening on a socket is part of the 'entity_node' cluster, with the
-'cache_entity_node' table mapped to it -- so the Backdrop block cache is stored
-here. Note that sockets do not have ports.
-
-```
-$settings['cache_backends'][] = 'sites/all/modules/memcache/memcache.inc';
-$settings['lock_inc'] = 'sites/all/modules/memcache/memcache-lock.inc';
-$settings['memcache_stampede_protection'] = TRUE;
-$settings['cache_default_class'] = 'BackdropMemcache';
-
-// Important to define a default cluster in both the servers
-// and in the bins. This links them together.
-$settings['memcache_servers'] = array(
-  '10.1.1.1:11211' => 'default',
-  '10.1.1.1:11212' => 'pages',
-  'unix:///path/to/socket' => 'entity_node',
-);
-$settings['memcache_bins'] = array(
-  'cache' => 'default',
-  'cache_page' => 'pages',
-  'cache_entity_node' => 'entity_node',
-);
-```
-
-
-Example 3:
-
-Here is an example configuration that has two clusters, 'default' and
-'cluster2'. Five memcached instances running on four different servers are
-divided up between the two clusters. The 'cache_filter' and 'cache_menu' bins
-go to 'cluster2'. All other bins go to 'default'.
-
-```php
-$settings['cache_backends'][] = 'sites/all/modules/memcache/memcache.inc';
-$settings['lock_inc'] = 'sites/all/modules/memcache/memcache-lock.inc';
-$settings['memcache_stampede_protection'] = TRUE;
-$settings['cache_default_class'] = 'BackdropMemcache';
-
-$settings['memcache_servers'] = array(
-  '10.1.1.6:11211' => 'default',
-  '10.1.1.6:11212' => 'default',
-  '10.1.1.7:11211' => 'default',
-  '10.1.1.8:11211' => 'cluster2',
-  '10.1.1.9:11211' => 'cluster2',
-);
-
-$settings['memcache_bins'] = array(
-  'cache' => 'default',
-  'cache_filter' => 'cluster2',
-  'cache_menu' => 'cluster2',
-);
-```
 
 Prefixing
 ---------
@@ -613,7 +544,9 @@ SOLUTION:
 Verify that the memcached daemon is running at the specified IP and PORT. To
 debug you can try to telnet directly to the memcache server from your web
 servers, example:
-   telnet localhost 11211
+```
+telnet localhost 11211
+```
 
 PROBLEM:
  Error:
@@ -623,7 +556,6 @@ SOLUTION:
 Carefully review your settings.php configuration against the above
 documentation. This error simply does a cache_set followed by a cache_get
 and confirms that what is written to the cache can then be read back again.
-This test was added in the 7.x-1.1 release.
 
 The following code is what performs this test -- you can wrap this in a <?php
 tag and execute as a script with 'drush scr' to perform further debugging.
@@ -663,12 +595,6 @@ Upgrade your PECL library to PECL package (2.2.1) (or higher).
 WARNING:
 Zlib compression at the php.ini level and Memcache conflict.
 See http://drupal.org/node/273824
-
-Memcache Admin
---------------
-
-A module offering a UI for memcache is included. It provides aggregated and
-per-page statistics for memcache.
 
 Memcached PECL Extension Support
 --------------------------------

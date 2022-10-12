@@ -330,8 +330,8 @@ function _check_ascii_auth($memcache_original) {
     $mc->addServer($s['host'], $s['port']);
 
     // Check that a set() / get() with a fresh connection fails.
-    $mc->set(DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
-    $rc = $mc->get(DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+    $mc->set(BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
+    $rc = $mc->get(BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
     if ($rc) {
       return [$s, t('ASCII authentication not enabled on server')];
     }

@@ -1,0 +1,40 @@
+[MemCacheSavingCase]
+name = Metatag base tag tests
+description = Check our variables are saved and restored the right way.
+group = Memcache
+file = memcache.test
+
+[MemCacheGetMultipleUnitTest]
+name = Fetching multiple cache items
+description = Confirm that multiple records are fetched correctly.
+group = Memcache
+file = memcache.test
+
+[MemCacheClearCase]
+name = Cache clear test
+description = Check our clearing is done the proper way.
+group = Memcache
+file = memcache.test
+
+[MemCacheStampedeProtection]
+name = Memcache stampede protection
+description =Tests memcache stampede protection.
+group = Memcache
+file = memcache.test
+
+[MemCacheRealWorldCase]
+name = Real world cache tests
+description = Test some real world cache scenarios.
+group = Memcache
+file = memcache.test
+
+[MemCacheStatisticsTestCase]
+name = Statistics tests
+description = Test that statistics are being recorded appropriately.
+group = Memcache
+file = memcache.test
+
+; Added by Backdrop CMS packaging script on 2022-08-02
+project = metatag
+version = 1.x-1.22.2
+timestamp = 1659484910

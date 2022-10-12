@@ -13,8 +13,8 @@
 define('MEMCACHED_E2BIG', 37);
 define('MEMCACHED_CLIENT_ERROR', 9);
 define('MEMCACHED_SERVER_TIMED_OUT', 47);
-define('DRUPAL_MEMCACHE_ASCII_AUTH_KEY', 'backdrop:memcache:ascii:auth:key');
-define('DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY', 'backdrop:memcache:ascii:auth:lifetime:key');
+define('BACKDROP_MEMCACHE_ASCII_AUTH_KEY', 'backdrop:memcache:ascii:auth:key');
+define('BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY', 'backdrop:memcache:ascii:auth:lifetime:key');
 
 global $_dmemcache_stats;
 $_dmemcache_stats = array('all' => array(), 'ops' => array());
@@ -293,7 +293,7 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
       }
       if ($memcache_ascii_auth) {
         // As sets are costly we first check that the server is not authorized first.
-        $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+        $rc = $mc->getByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
         if (empty($rc) && _dmemcache_ensure_ascii_auth($full_key, $mc)) {
           $result = @$mc->get($full_key);
         }
@@ -1194,9 +1194,9 @@ function dmemcache_piece_cache_set($cid, $exp = NULL) {
 function dmemcache_piece_cache_get($name) {
   static $backdrop_static_fast;
   if (!isset($backdrop_static_fast)) {
-    $backdrop_static_fast['piece_cache'] = &drupal_static('dmemcache_piece_cache', FALSE);
+    $backdrop_static_fast['piece_cache'] = &backdrop_static('dmemcache_piece_cache', FALSE);
   }
-  $piece_cache = &$drupal_static_fast['piece_cache'];
+  $piece_cache = &$backdrop_static_fast['piece_cache'];
 
   if (!is_array($piece_cache)) {
     $piece_cache = dmemcache_get('__dmemcache_piece_cache');
@@ -1226,13 +1226,13 @@ function dmemcache_piece_cache_get($name) {
  *   TRUE or FALSE if statistics should be collected.
  */
 function dmemcache_stats_init() {
-  static $drupal_static_fast;
+  static $backdrop_static_fast;
 
-  if (!isset($drupal_static_fast)) {
-    $drupal_static_fast = &backdrop_static(__FUNCTION__, array('variable_checked' => NULL, 'user_access_checked' => NULL));
+  if (!isset($backdrop_static_fast)) {
+    $backdrop_static_fast = &backdrop_static(__FUNCTION__, array('variable_checked' => NULL, 'user_access_checked' => NULL));
   }
-  $variable_checked = &$drupal_static_fast['variable_checked'];
-  $user_access_checked  = &$drupal_static_fast['user_access_checked'];
+  $variable_checked = &$backdrop_static_fast['variable_checked'];
+  $user_access_checked  = &$backdrop_static_fast['user_access_checked'];
 
   // Confirm BACKDROP_BOOTSTRAP_CONFIG has been reached.
   if (!isset($variable_checked) && function_exists('config_get')) {
@@ -1351,11 +1351,11 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
   }
 
   // Login to the server.
-  $rc = $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth_token);
+  $rc = $mc->setByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth_token);
   if (!$rc && $mc->getResultCode() == MEMCACHED_SERVER_TIMED_OUT) {
     // Quitting is the only way to recover from this failure.
     $mc->quit();
-    $rc = $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth_token);
+    $rc = $mc->setByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_KEY, $memcache_ascii_auth_token);
   }
   if (!$rc) {
     $code = $mc->getResultCode();
@@ -1374,17 +1374,17 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
   }
 
   // Login was successful, check if our lifetime key exists already.
-  $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+  $rc = $mc->getByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
   if ($rc) {
     return TRUE;
   }
 
   // Set the lifetime key.
-  $mc->setByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
+  $mc->setByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY, TRUE);
 
   // Confirm the lifetime key properly set, setByKey() can return success
   // even when it fails.
-  return $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+  return $mc->getByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
 }
 
 /**
@@ -1474,7 +1474,7 @@ function _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc) {
 
     // Check if lifetime token exists and hence if we are authorized
     // on this server.
-    $rc = $mc->getByKey($full_key, DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
+    $rc = $mc->getByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
     if (empty($rc) && _dmemcache_ensure_ascii_auth($full_key, $mc)) {
       // If we logged in after first failing a fetch for our lifetime key,
       // then these keys need to be retried as the "not found" could have been

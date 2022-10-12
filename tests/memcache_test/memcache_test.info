@@ -1,5 +1,6 @@
+type = module
 name = Memcache test
 description = Support module for memcache testing.
 package = Testing
-core = 7.x
+backdrop = 1.x
 hidden = TRUE

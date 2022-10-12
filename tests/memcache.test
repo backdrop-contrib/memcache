@@ -138,14 +138,6 @@ class MemcacheTestCase extends BackdropWebTestCase {
 
 class MemCacheSavingCase extends MemcacheTestCase {
 
-  public static function getInfo() {
-    return array(
-      'name' => 'Memcache saving test',
-      'description' => 'Check our variables are saved and restored the right way.',
-      'group' => 'Memcache',
-    );
-  }
-
   /**
    * @see MemcacheTestCase::setUp()
    */
@@ -256,15 +248,6 @@ class MemCacheSavingCase extends MemcacheTestCase {
  * Test cache_get_multiple().
  */
 class MemCacheGetMultipleUnitTest extends MemcacheTestCase {
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Fetching multiple cache items',
-      'description' => 'Confirm that multiple records are fetched correctly.',
-      'group' => 'Memcache',
-    );
-  }
-
   /**
    * @see MemcacheTestCase::setUp()
    */
@@ -309,14 +292,6 @@ class MemCacheGetMultipleUnitTest extends MemcacheTestCase {
  * Test cache clearing methods.
  */
 class MemCacheClearCase extends MemcacheTestCase {
-  public static function getInfo() {
-    return array(
-      'name' => 'Cache clear test',
-      'description' => 'Check our clearing is done the proper way.',
-      'group' => 'Memcache',
-    );
-  }
-
   /**
    * @see MemcacheTestCase::setUp()
    */
@@ -590,15 +565,6 @@ class MemCacheClearCase extends MemcacheTestCase {
  * Tests memcache stampede protection.
  */
 class MemCacheStampedeProtection extends MemcacheTestCase {
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Memcache stampede protection',
-      'description' => 'Tests memcache stampede protection.',
-      'group' => 'Memcache',
-    );
-  }
-
   /**
    * Tests the opt out functionality of stampede protection using a unit test.
    */
@@ -667,14 +633,6 @@ class MockBackdropMemcache extends BackdropMemcache {
 class MemCacheRealWorldCase extends MemcacheTestCase {
   protected $profile = 'standard';
   protected $default_bin = 'cache_menu';
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Real world cache tests',
-      'description' => 'Test some real world cache scenarios.',
-      'group' => 'Memcache',
-    );
-  }
 
   /**
    * @see MemcacheTestCase::setUp()
@@ -770,23 +728,11 @@ class MemCacheRealWorldCase extends MemcacheTestCase {
  * Test statistics generation.
  */
 class MemCacheStatisticsTestCase extends MemcacheTestCase {
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Statistics tests',
-      'description' => 'Test that statistics are being recorded appropriately.',
-      'group' => 'Memcache',
-    );
-  }
-
   /**
    * @see MemcacheTestCase::setUp()
    */
   public function setUp() {
-    parent::setUp('memcache_admin');
-
-    $conf['cache_default_class'] = 'BackdropMemcache';
-    $conf['cache_class_cache_form'] = 'BackdropDatabaseCache';
+    parent::setUp(array('memcache_admin'));
   }
 
   /**
@@ -812,7 +758,7 @@ class MemCacheStatisticsTestCase extends MemcacheTestCase {
 
     // Turn on memcache statistics.
     variable_set('show_memcache_statistics', TRUE);
-    drupal_static_reset('dmemcache_stats_init');
+    backdrop_static_reset('dmemcache_stats_init');
 
     $this->drupalGet('<front>');
     // Check that statistics are not displayed for anonymous users.
@@ -833,7 +779,7 @@ class MemCacheStatisticsTestCase extends MemcacheTestCase {
     $this->drupalGet('<front>');
     // Check that bootstrap statistics are visible.
     foreach ($cache_bootstrap_cids as $stat) {
-      $key = $GLOBALS['drupal_test_info']['test_run_id'] . 'cache_bootstrap-' . $stat;
+      $key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'cache_bootstrap-' . $stat;
       $this->assertRaw("<td>get</td><td>cache_bootstrap</td><td>{$key}</td>", t('Key @key found.', array('@key' => $key)));
     }
 
@@ -846,7 +792,7 @@ class MemCacheStatisticsTestCase extends MemcacheTestCase {
     // Check that early bootstrap statistics are still visible and are being
     // set too, after they were removed.
     foreach ($cache_bootstrap_cids as $stat) {
-      $key = $GLOBALS['drupal_test_info']['test_run_id'] . 'cache_bootstrap-' . $stat;
+      $key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'cache_bootstrap-' . $stat;
       $this->assertRaw("<td>get</td><td>cache_bootstrap</td><td>{$key}</td>", t('Key @key found (get).', array('@key' => $key)));
       $this->assertRaw("<td>set</td><td>cache_bootstrap</td><td>{$key}</td>", t('Key @key found (set).', array('@key' => $key)));
     }
@@ -869,7 +815,7 @@ class MemCacheStatisticsTestCase extends MemcacheTestCase {
 
     // Turn off memcache statistics.
     variable_set('show_memcache_statistics', FALSE);
-    drupal_static_reset('dmemcache_stats_init');
+    backdrop_static_reset('dmemcache_stats_init');
 
     $this->drupalGet('<front>');
     // Check that statistics are not recorded when the user has access, but
