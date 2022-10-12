@@ -6,12 +6,12 @@
  * See includes/lock.inc for documenation
  */
 
-require_once dirname(__FILE__) . '/dmemcache.inc';
+require_once __DIR__ . '/dmemcache.inc';
 
 // Check if memcached is available - if not include default lock handler.
 // @todo get rid of this conditional include as soon as this is done:
 // http://drupal.org/node/1225404
-$lock_file = dirname(__FILE__) . '/memcache-lock-code.inc';
+$lock_file = __DIR__ . '/memcache-lock-code.inc';
 $mc = dmemcache_object('semaphore');
 // dmemcache_object may return FALSE, we don't need these stats but it forces
 // us to try and connect to memcache. If this fails, we can't store locks in

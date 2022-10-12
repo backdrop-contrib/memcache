@@ -48,7 +48,7 @@ function memcache_enable() {
       }
     }
     // Make a test connection to all configured memcache servers.
-    $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+    $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
     foreach ($memcache_servers as $server => $bin) {
       if ($cluster = dmemcache_object_cluster($bin)) {
         $memcache = dmemcache_instance($cluster['cluster']);
@@ -56,7 +56,7 @@ function memcache_enable() {
           $error = TRUE;
         }
         else {
-          if (!variable_get('memcache_persistent', TRUE)) {
+          if (!settings_get('memcache_persistent', TRUE)) {
             dmemcache_close($memcache);
           }
         }
@@ -72,7 +72,7 @@ function memcache_enable() {
   }
 
   if ($error || $warning) {
-    drupal_set_message(t('There are problems with your Memcache configuration. Please review %readme and visit the Drupal admin !status page for more information.', array('%readme' => 'README.txt', '!status' => l(t('status report'), 'admin/reports/status'))), $severity);
+    backdrop_set_message(t('There are problems with your Memcache configuration. Please review %readme and visit the Backdrop admin !status page for more information.', array('%readme' => 'README.md', '!status' => l(t('status report'), 'admin/reports/status'))), $severity);
   }
 
 }
@@ -106,7 +106,7 @@ function memcache_requirements($phase) {
 
     if (!function_exists('dmemcache_set')) {
       // dmemcache.inc isn't loaded.
-      $errors[] = $t('Failed to load required file %dmemcache.', array('%dmemcache' => drupal_get_path('module', 'memcache') . '/' . 'dmemcache.inc'));
+      $errors[] = $t('Failed to load required file %dmemcache.', array('%dmemcache' => backdrop_get_path('module', 'memcache') . '/' . 'dmemcache.inc'));
       $requirements['memcache_extension']['value'] = $t('Unknown');
     }
     else {
@@ -160,7 +160,7 @@ function memcache_requirements($phase) {
         }
 
         // Confirm ASCII authentication works on all memcached servers.
-        $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
+        $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
         foreach ($memcache_bins as $bin => $_) {
           if ($mc = dmemcache_object($bin)) {
             $ascii_auth = _check_ascii_auth($mc);
@@ -179,7 +179,7 @@ function memcache_requirements($phase) {
       }
 
       // Make a test connection to all configured memcache servers.
-      $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+      $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
       foreach ($memcache_servers as $server => $bin) {
         if ($cluster = dmemcache_object_cluster($bin)) {
           $memcache = dmemcache_instance($cluster['cluster']);
@@ -187,7 +187,7 @@ function memcache_requirements($phase) {
             $errors[] = $t('Failed to connect to memcached server instance at %server.', array('%server' => $server));
           }
           else {
-            if (!variable_get('memcache_persistent', TRUE)) {
+            if (!settings_get('memcache_persistent', TRUE)) {
               dmemcache_close($memcache);
             }
           }
@@ -195,20 +195,24 @@ function memcache_requirements($phase) {
       }
 
       // Set up a temporary bin to see if we can store a value and then
-      // successfully retreive it.
+      // successfully retrieve it.
       try {
         $cid = 'memcache_requirements_test';
         $value = 'OK';
         // Temporarily store a test value in memcache.
-        cache_set($cid, $value);
-        // Retreive the test value from memcache.
-        $data = cache_get($cid);
+        cache()->set($cid, $value);
+        // Retrieve the test value from memcache.
+        $data = cache()->get($cid);
         if (!isset($data->data) || $data->data !== $value) {
           $errors[] = $t('Failed to store to then retrieve data from memcache.');
         }
         else {
           // Test a delete as well.
-          cache_clear_all($cid, 'cache');
+          cache()->delete($cid);
+          $result = cache()->get($cid);
+          if ($result) {
+            $errors[] = $t('Stored cache data was not deleted.');
+          }
         }
       }
       catch (Exception $e) {
@@ -218,8 +222,8 @@ function memcache_requirements($phase) {
       // Core's lock implementation can cause worse performance together with
       // stampede protection. Plus, long keys will be truncated resulting in
       // dropped locks.
-      if (variable_get('memcache_stampede_protection', FALSE) && strpos(variable_get('lock_inc', 'includes/lock.inc'), 'includes/lock.inc') !== FALSE) {
-        $warnings[] = $t('Drupal\'s core lock implementation (%core) is not supported by memcache stampede protection. Enable the memcache lock implementation (%memcache) or disable memcache stampede protection.', array('%core' => 'includes/lock.inc', '%memcache' => drupal_get_path('module', 'memcache') . "/memcache-lock.inc"));
+      if (settings_get('memcache_stampede_protection', FALSE) && strpos(settings_get('lock_inc', 'includes/lock.inc'), 'includes/lock.inc') !== FALSE) {
+        $warnings[] = $t('Backdrop\'s core lock implementation (%core) is not supported by memcache stampede protection. Enable the memcache lock implementation (%memcache) or disable memcache stampede protection.', array('%core' => 'includes/lock.inc', '%memcache' => backdrop_get_path('module', 'memcache') . "/memcache-lock.inc"));
       }
     }
 
@@ -229,11 +233,11 @@ function memcache_requirements($phase) {
       $errors = array_merge($errors, $warnings);
       unset($warnings);
       $requirements['memcache_extension']['severity'] = REQUIREMENT_ERROR;
-      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration, check the Drupal logs for additional errors. Please review %readme for help resolving the following !issue: !errors', array('%readme' => drupal_get_path('module', 'memcache') . '/' . 'README.txt', '!issue' => format_plural(count($errors), 'issue', 'issues'), '!errors' => '<ul><li>' . implode('<li>', $errors)));
+      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration, check the Backdrop logs for additional errors. Please review %readme for help resolving the following !issue: !errors', array('%readme' => backdrop_get_path('module', 'memcache') . '/' . 'README.md', '!issue' => format_plural(count($errors), 'issue', 'issues'), '!errors' => '<ul><li>' . implode('<li>', $errors)));
     }
     elseif (!empty($warnings)) {
       $requirements['memcache_extension']['severity'] = REQUIREMENT_WARNING;
-      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration. Please review %readme for help resolving the following !issue: !warnings', array('%readme' => drupal_get_path('module', 'memcache') . '/' . 'README.txt', '!issue' => format_plural(count($warnings), 'issue', 'issues'), '!warnings' => '<ul><li>' . implode('<li>', $warnings)));
+      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration. Please review %readme for help resolving the following !issue: !warnings', array('%readme' => backdrop_get_path('module', 'memcache') . '/' . 'README.md', '!issue' => format_plural(count($warnings), 'issue', 'issues'), '!warnings' => '<ul><li>' . implode('<li>', $warnings)));
     }
     else {
       $requirements['memcache_extension']['severity'] = REQUIREMENT_OK;

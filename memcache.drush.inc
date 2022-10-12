@@ -119,8 +119,8 @@ function drush_memcached_stats_validate() {
  * Check if memcache.inc has been included.
  */
 function _memcache_is_available() {
-  if (!class_exists('MemCacheDrupal', FALSE)) {
-    return drush_set_error("MemCacheDrupal class is not available", "Please review README.txt and properly enable memcache.");;
+  if (!class_exists('BackdropMemcache', FALSE)) {
+    return drush_set_error("BackdropMemcache class is not available", "Please review README.md and properly enable memcache.");;
   }
   return TRUE;
 }

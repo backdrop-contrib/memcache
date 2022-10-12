@@ -3,26 +3,7 @@
 /**
  * @file
  * For the collection and display of memcache stats.
- *
- * This module adds a small .js file to makes sure that the HTML displaying the
- * stats is inside of the <body> part of the HTML document.
  */
-
-/**
- * Implements hook_init().
- */
-function memcache_admin_init() {
-  global $user;
-  if (($user->uid == 0) || strstr($_SERVER['PHP_SELF'], 'update.php') || (isset($_GET['q']) && (in_array($_GET['q'], array('upload/js', 'admin/content/node-settings/rebuild')) || substr($_GET['q'], 0, strlen('system/files')) == 'system/files' || substr($_GET['q'], 0, strlen('batch')) == 'batch' || strstr($_GET['q'], 'autocomplete')))) {
-    // update.php relies on standard error handler.
-  }
-  else {
-    if ($user->uid) {
-      drupal_add_js(drupal_get_path('module', 'memcache_admin') . '/memcache.js');
-    }
-    register_shutdown_function('memcache_admin_shutdown');
-  }
-}
 
 /**
  * Implements hook_perm().
@@ -46,7 +27,7 @@ function memcache_admin_menu() {
   $items['admin/config/system/memcache'] = array(
     'title' => 'Memcache',
     'description' => 'Show or hide memcache statistics at the bottom of each page.',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('memcache_admin_admin_settings'),
     'access arguments' => array('administer site configuration'),
   );
@@ -57,7 +38,7 @@ function memcache_admin_menu() {
     'access arguments' => array('access memcache statistics'),
     'weight' => 1,
   );
-  $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+  $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
   $clusters = array();
   foreach ($memcache_servers as $server => $bin) {
     if (function_exists('dmemcache_object_cluster') && $cluster = dmemcache_object_cluster($bin)) {
@@ -110,13 +91,25 @@ function memcache_admin_menu() {
 }
 
 /**
+ * Implements hook_config_info().
+ */
+function memcache_admin_config_info() {
+  $prefixes['memcache_admin.settings'] = array(
+    'label' => t('Memcache Admin Settings'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
+}
+
+/**
  * Settings form.
  */
 function memcache_admin_admin_settings() {
-  $form['show_memcache_statistics'] = array(
+  $form['#config'] = 'memcache_admin.settings';
+  $form['show_statistics'] = array(
     '#type' => 'checkbox',
     '#title' => t('Show memcache statistics at the bottom of each page'),
-    '#default_value' => variable_get('show_memcache_statistics', FALSE),
+    '#default_value' => config_get('memcache_admin.settings', 'show_statistics'),
     '#description' => t("These statistics will be visible to users with the 'access memcache statistics' permission."),
   );
   return system_settings_form($form);
@@ -242,7 +235,7 @@ function _memcache_admin_stats_memory($stats) {
  * Helper function, reverse map the memcache_bins variable.
  */
 function memcache_admin_bin_mapping($bin = 'cache') {
-  $bins = array_flip(variable_get('memcache_bins', array('cache' => 'default')));
+  $bins = array_flip(settings_get('memcache_bins', array('cache' => 'default')));
   if (isset($bins[$bin])) {
     return $bins[$bin];
   }
@@ -259,17 +252,17 @@ function memcache_admin_bin_mapping($bin = 'cache') {
  *   The page output.
  */
 function memcache_admin_stats($bin = 'default') {
-  if (!class_exists('MemCacheDrupal', FALSE)) {
-    return t('There is a problem with your memcache configuration. Please review !readme for help resolving the following issue: %error.', array('!readme' => l('README.txt', 'http://cgit.drupalcode.org/memcache/tree/README.txt?id=refs/heads;id2=7.x-1.x'), '%error' => t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc')));
+  if (!class_exists('BackdropMemcache', FALSE)) {
+    return t('There is a problem with your memcache configuration. Please review !readme for help resolving the following issue: %error.', array('!readme' => l('README.md', 'http://cgit.drupalcode.org/memcache/tree/README.txt?id=refs/heads;id2=7.x-1.x'), '%error' => t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc')));
   }
-  if ($memcache_debug_log = variable_get('memcache_debug_log', FALSE)) {
-    if (variable_get('memcache_debug_verbose', FALSE)) {
+  if ($memcache_debug_log = settings_get('memcache_debug_log', FALSE)) {
+    if (settings_get('memcache_debug_verbose', FALSE)) {
       $verbose = t('verbose');
     }
     else {
       $verbose = '';
     }
-    drupal_set_message(t('You are writing !verbose debug logs to !debug_log.', array('!verbose' => $verbose, '!debug_log' => $memcache_debug_log)), 'warning');
+    backdrop_set_message(t('You are writing !verbose debug logs to !debug_log.', array('!verbose' => $verbose, '!debug_log' => $memcache_debug_log)), 'warning');
   }
   $bin = memcache_admin_bin_mapping($bin);
   $output = '';
@@ -278,7 +271,7 @@ function memcache_admin_stats($bin = 'default') {
   if (empty($stats[$bin])) {
     // Failed to load statistics. Provide a useful error about where to get
     // more information and help.
-    drupal_set_message(t('Failed to retreive statistics. There may be a problem with your Memcache configuration. Please review %readme and !more for more information.', array('%readme' => 'README.txt', 'admin/reports/status', '!more' => module_exists('memcache') ? t('visit the Drupal admin !status page', array('!status' => l(t('status report'), 'admin/reports/status'))) : t('!enable the memcache module', array('!enable' => l(t('enable'), 'admin/modules', array('fragment' => 'edit-modules-performance-and-scalability')))))), 'error');
+    backdrop_set_message(t('Failed to retreive statistics. There may be a problem with your Memcache configuration. Please review %readme and !more for more information.', array('%readme' => 'README.md', 'admin/reports/status', '!more' => module_exists('memcache') ? t('visit the Backdrop admin !status page', array('!status' => l(t('status report'), 'admin/reports/status'))) : t('!enable the memcache module', array('!enable' => l(t('enable'), 'admin/modules', array('fragment' => 'edit-modules-performance-and-scalability')))))), 'error');
   }
   else {
     $stats = $stats[$bin];
@@ -292,13 +285,13 @@ function memcache_admin_stats($bin = 'default') {
     }
     else {
       $version = t('Unknown');
-      drupal_set_message(t('Failed to detect the memcache PECL extension.'), 'error');
+      backdrop_set_message(t('Failed to detect the memcache PECL extension.'), 'error');
     }
-    $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+    $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
 
     foreach ($stats as $server => $statistics) {
       if (empty($statistics['uptime'])) {
-        drupal_set_message(t('Failed to connect to server at %address.', array('%address' => $server)), 'error');
+        backdrop_set_message(t('Failed to connect to server at %address.', array('%address' => $server)), 'error');
       }
       else {
         $servers[] = $server;
@@ -455,7 +448,7 @@ function memcache_admin_stats_raw($bin, $server, $type = 'default') {
     $breadcrumbs[] = l($server, "admin/reports/memcache/$bin/$server");
     $breadcrumbs[] = l(t('slabs'), "admin/reports/memcache/$bin/$server/$type");
   }
-  drupal_set_breadcrumb($breadcrumbs);
+  backdrop_set_breadcrumb($breadcrumbs);
   if (isset($stats[$cluster][$server]) && is_array($stats[$cluster][$server]) && count($stats[$cluster][$server])) {
     $output = theme('memcache_admin_stats_raw_table', array(
       'cluster' => $cluster,
@@ -479,7 +472,7 @@ function memcache_admin_stats_raw($bin, $server, $type = 'default') {
       'stats' => array(),
       'type' => $type,
     ));
-    drupal_set_message(t('No @type statistics for this bin.', array('@type' => $type)));
+    backdrop_set_message(t('No @type statistics for this bin.', array('@type' => $type)));
   }
   return $output;
 }
@@ -518,7 +511,7 @@ function theme_memcache_admin_stats_table($variables) {
   $output = '';
 
   $links = array();
-  $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
+  $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
   foreach ($servers as $server) {
     $link_bin = $memcache_bins[$bin];
     $links[] = l($server, check_plain("admin/reports/memcache/$link_bin/$server"));
@@ -581,7 +574,7 @@ function theme_memcache_admin_stats_raw_table($variables) {
   $stats = $variables['stats'];
   $current_type = isset($variables['type']) ? $variables['type'] : 'default';
 
-  $memcache_bins = variable_get('memcache_bins', array());
+  $memcache_bins = settings_get('memcache_bins', array());
   $bin = isset($memcache_bins[$cluster]) ? $memcache_bins[$cluster] : 'default';
   // Provide navigation for the various memcache stats types.
   if (count(memcache_admin_stats_types($bin)) > 1) {
@@ -652,7 +645,7 @@ function _memcache_admin_get_bin_for_cluster($cluster) {
   static $cluster_map = array();
 
   if (!isset($cluster_map[$cluster])) {
-    $memcache_bins = variable_get('memcache_bins', array());
+    $memcache_bins = settings_get('memcache_bins', array());
     if ($mapping = array_search($cluster, $memcache_bins)) {
       $cluster_map[$cluster] = $mapping;
     }
@@ -680,11 +673,11 @@ function _memcache_admin_stats_percent($a, $b) {
 }
 
 /**
- * Displays memcache stats in the footer. This is run as a shutdown function.
+ * Implements hook_exit().
  *
- * @see memcache_admin_init()
+ * Displays memcache stats in the footer.
  */
-function memcache_admin_shutdown() {
+function memcache_admin_exit() {
   global $_dmemcache_stats;
 
   // Don't call theme() during shutdown if the registry has been rebuilt (such
@@ -696,32 +689,11 @@ function memcache_admin_shutdown() {
   }
 
   // Try not to break non-HTML pages.
-  if (function_exists('drupal_get_http_header')) {
-    $header = drupal_get_http_header('content-type');
-    if ($header) {
-      $formats = array(
-        'xml',
-        'javascript',
-        'json',
-        'plain',
-        'image',
-        'application',
-        'csv',
-        'x-comma-separated-values',
-      );
-      foreach ($formats as $format) {
-        if (strstr($header, $format)) {
-          return;
-        }
-      }
-    }
-    else {
-      // Workaround for CKEditor, see https://www.drupal.org/node/2556999
-      return;
-    }
+  if (backdrop_is_ajax() || backdrop_is_cli() || !backdrop_is_html()) {
+    return;
   }
 
-  if (variable_get('show_memcache_statistics', FALSE) && function_exists('user_access') && user_access('access memcache statistics')) {
+  if (config_get('memcache_admin.settings', 'show_statistics') && function_exists('user_access') && user_access('access memcache statistics')) {
     $output = '';
     if (!empty($_dmemcache_stats['ops'])) {
       foreach ($_dmemcache_stats['ops'] as $row => $stats) {

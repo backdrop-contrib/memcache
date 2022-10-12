@@ -19,7 +19,7 @@ function memcache_admin_requirements($phase) {
       $requirements['memcache_admin'] = array(
         'title' => $t('Memcache admin'),
         'value' => $t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc.'),
-        'description' => $t('You must properly configure cache_backends in %settings before enabling the memcache_admin module. Please review %readme for more information.', array('%settings' => 'settings.php', '%readme' => 'README.txt')),
+        'description' => $t('You must properly configure cache_backends in %settings before enabling the memcache_admin module. Please review %readme for more information.', array('%settings' => 'settings.php', '%readme' => 'README.md')),
         'severity' => REQUIREMENT_ERROR,
       );
     }
@@ -29,7 +29,7 @@ function memcache_admin_requirements($phase) {
       $requirements['memcache_admin'] = array(
         'title' => $t('Memcache admin'),
         'value' => $t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc.'),
-        'description' => $t('You have enabled the memcache_admin module without properly configuring cache_backends in %settings. Please review %readme for more information.', array('%settings' => 'settings.php', '%readme' => 'README.txt')),
+        'description' => $t('You have enabled the memcache_admin module without properly configuring cache_backends in %settings. Please review %readme for more information.', array('%settings' => 'settings.php', '%readme' => 'README.md')),
         'severity' => REQUIREMENT_WARNING,
       );
     }
@@ -38,16 +38,8 @@ function memcache_admin_requirements($phase) {
 }
 
 /**
- * Flush caches and rebuild menu to allow new stats pages to appear.
+ * Convert variables to config.
  */
-function memcache_admin_update_7001() {
-  drupal_flush_all_caches();
-  menu_rebuild();
-}
-
-/**
- * Implements hook_uninstall().
- */
-function memcache_admin_uninstall() {
-  variable_del('show_memcache_statistics');
+function memcache_admin_update_1000() {
+  config_set('memcache_admin.settings', 'show_statistics', update_variable_get('show_memcache_statistics', FALSE));
 }

@@ -1,0 +1,5 @@
+{
+    "_config_name": "memcache_admin.settings",
+    "_config_static": true,
+    "show_statistics": false
+}

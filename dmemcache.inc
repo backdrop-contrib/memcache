@@ -2,7 +2,7 @@
 
 /**
  * @file
- * A memcache API for Drupal.
+ * A memcache API for Backdrop.
  *
  * This file contains core dmemcache functions required by:
  *   memcache.inc
@@ -13,8 +13,8 @@
 define('MEMCACHED_E2BIG', 37);
 define('MEMCACHED_CLIENT_ERROR', 9);
 define('MEMCACHED_SERVER_TIMED_OUT', 47);
-define('DRUPAL_MEMCACHE_ASCII_AUTH_KEY', 'drupal:memcache:ascii:auth:key');
-define('DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY', 'drupal:memcache:ascii:auth:lifetime:key');
+define('DRUPAL_MEMCACHE_ASCII_AUTH_KEY', 'backdrop:memcache:ascii:auth:key');
+define('DRUPAL_MEMCACHE_ASCII_AUTH_LIFETIME_KEY', 'backdrop:memcache:ascii:auth:lifetime:key');
 
 global $_dmemcache_stats;
 $_dmemcache_stats = array('all' => array(), 'ops' => array());
@@ -32,7 +32,7 @@ $_dmemcache_stats = array('all' => array(), 'ops' => array());
  *   the time, it could be deleted from the cache to make place for other
  *   items).
  * @param string $bin
- *   The name of the Drupal subsystem that is making this call. Examples could
+ *   The name of the Backdrop subsystem that is making this call. Examples could
  *   be 'cache', 'alias', 'taxonomy term' etc. It is possible to map different
  *   $bin values to different memcache servers.
  * @param object $mc
@@ -67,15 +67,15 @@ function dmemcache_set($key, $value, $exp = 0, $bin = 'cache', $mc = NULL) {
       // The PECL Memcache library throws an E_NOTICE level error, which
       // $php_errormsg doesn't catch, so we need to log it ourselves.
       // Catch it with our own error handler.
-      drupal_static_reset('_dmemcache_error_handler');
+      backdrop_static_reset('_dmemcache_error_handler');
       set_error_handler('_dmemcache_error_handler');
       $rc = $mc->set($full_key, $value, MEMCACHE_COMPRESSED, $exp);
-      // Restore the Drupal error handler.
+      // Restore the Backdrop error handler.
       restore_error_handler();
       if (empty($rc)) {
         // If the object was too big, split the value into pieces and cache
         // them individually.
-        $dmemcache_errormsg = &drupal_static('_dmemcache_error_handler');
+        $dmemcache_errormsg = &backdrop_static('_dmemcache_error_handler');
         if (!empty($dmemcache_errormsg) && (strpos($dmemcache_errormsg, 'SERVER_ERROR object too large for cache') !== FALSE || strpos($dmemcache_errormsg, 'SERVER_ERROR out of memory storing object') !== FALSE)) {
           $rc = _dmemcache_set_pieces($key, $value, $exp, $bin, $mc);
         }
@@ -96,7 +96,7 @@ function dmemcache_set($key, $value, $exp = 0, $bin = 'cache', $mc = NULL) {
  * A temporary error handler which keeps track of the most recent error.
  */
 function _dmemcache_error_handler($errno, $errstr) {
-  $dmemcache_errormsg = &drupal_static(__FUNCTION__);
+  $dmemcache_errormsg = &backdrop_static(__FUNCTION__);
   $dmemcache_errormsg = $errstr;
   return TRUE;
 }
@@ -113,7 +113,7 @@ function _dmemcache_error_handler($errno, $errstr) {
  *   (but memcached server doesn't guarantee this item to be stored all the
  *   time, it could be deleted from the cache to make place for other items).
  * @param string $bin
- *   (optional) The name of the Drupal subsystem that is making this call.
+ *   (optional) The name of the Backdrop subsystem that is making this call.
  *   Examples could be 'cache', 'alias', 'taxonomy term' etc. It is possible to
  *   map different $bin values to different memcache servers.
  * @param object $mc
@@ -144,11 +144,11 @@ function _dmemcache_set_pieces($key, $value, $exp = 0, $bin = 'cache', $mc = NUL
   if (!dmemcache_piece_cache_set($full_key, $exp)) {
     // We're caching a LOT of large items. Our piece_cache has exceeded the
     // maximum memcache object size (default of 1 MiB).
-    $piece_cache = &drupal_static('dmemcache_piece_cache', array());
+    $piece_cache = &backdrop_static('dmemcache_piece_cache', array());
     register_shutdown_function('watchdog', 'memcache', 'Too many over-sized cache items (!count) has caused the dmemcache_piece_cache to exceed the maximum memcache object size (default of 1 MiB). Now relying on memcache auto-expiration to eventually clean up over-sized cache pieces upon deletion.', array('!count' => count($piece_cache)), WATCHDOG_ERROR);
   }
 
-  if (variable_get('memcache_log_data_pieces', 2)) {
+  if (settings_get('memcache_log_data_pieces', 2)) {
     timer_start('memcache_split_data');
   }
 
@@ -164,7 +164,7 @@ function _dmemcache_set_pieces($key, $value, $exp = 0, $bin = 'cache', $mc = NUL
   }
 
   // Account for any metadata stored alongside the data.
-  $max_len = variable_get('memcache_data_max_length', 1048576) - (512 + strlen($full_key));
+  $max_len = settings_get('memcache_data_max_length', 1048576) - (512 + strlen($full_key));
   $pieces = str_split($data, $max_len);
 
   $piece_count = count($pieces);
@@ -193,7 +193,7 @@ function _dmemcache_set_pieces($key, $value, $exp = 0, $bin = 'cache', $mc = NUL
     $result &= dmemcache_set($cache->cid, $cache, $exp, $bin, $mc);
   }
 
-  if (variable_get('memcache_log_data_pieces', 2) && $piece_count >= variable_get('memcache_log_data_pieces', 2)) {
+  if (settings_get('memcache_log_data_pieces', 2) && $piece_count >= settings_get('memcache_log_data_pieces', 2)) {
     if (function_exists('format_size')) {
       $data_size = format_size(strlen($data));
     }
@@ -221,7 +221,7 @@ function _dmemcache_set_pieces($key, $value, $exp = 0, $bin = 'cache', $mc = NUL
  *   (but memcached server doesn't guarantee this item to be stored all the
  *   time, it could be deleted from the cache to make place for other items).
  * @param string $bin
- *   (optional) The name of the Drupal subsystem that is making this call.
+ *   (optional) The name of the Backdrop subsystem that is making this call.
  *   Examples could be 'cache', 'alias', 'taxonomy term' etc. It is possible
  *   to map different $bin values to different memcache servers.
  * @param object $mc
@@ -552,7 +552,7 @@ function dmemcache_delete($key, $bin = 'cache', $mc = NULL) {
           // enable the memcache module.
           timer_start('memcache_gc_piece_cache');
           $gc_counter = 0;
-          $piece_cache = &drupal_static('dmemcache_piece_cache', array());
+          $piece_cache = &backdrop_static('dmemcache_piece_cache', array());
           foreach ($piece_cache as $cid => $expires) {
             if (REQUEST_TIME > $expires) {
               $gc_counter++;
@@ -624,7 +624,7 @@ function dmemcache_flush($bin = 'cache', $mc = NULL) {
  *   The statistics
  */
 function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggregate = FALSE) {
-  $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
+  $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
   // The stats_type can be over-loaded with an integer slab id, if doing a
   // cachedump.  We know we're doing a cachedump if $slab is non-zero.
   $slab = (int) $stats_type;
@@ -705,7 +705,7 @@ function dmemcache_extension() {
   static $extension = NULL;
   if ($extension === NULL) {
     // If an extension is specified in settings.php, use that when available.
-    $preferred = variable_get('memcache_extension', NULL);
+    $preferred = settings_get('memcache_extension', NULL);
     if (isset($preferred) && class_exists($preferred, FALSE)) {
       $extension = ucfirst(strtolower($preferred));
     }
@@ -733,7 +733,7 @@ function dmemcache_extension() {
 function dmemcache_serialize_extension() {
   static $extension = NULL;
   if ($extension === NULL) {
-    $preferred = strtolower(variable_get('memcache_serialize', NULL));
+    $preferred = strtolower(settings_get('memcache_serialize', NULL));
     // Fastpath if we're forcing php's own serialize function.
     if ($preferred == 'serialize') {
       $extension = $preferred;
@@ -797,6 +797,8 @@ function dmemcache_unserialize() {
 
 /**
  * Return a new memcache instance.
+ *
+ * @return Memcache|Memcached
  */
 function dmemcache_instance($bin = 'cache') {
   static $error = FALSE;
@@ -805,7 +807,7 @@ function dmemcache_instance($bin = 'cache') {
     return new Memcache();
   }
   elseif ($extension == 'Memcached') {
-    if (variable_get('memcache_persistent', TRUE)) {
+    if (settings_get('memcache_persistent', TRUE)) {
       $memcache = new Memcached($bin);
     }
     else {
@@ -817,13 +819,13 @@ function dmemcache_instance($bin = 'cache') {
     foreach ($default_opts as $key => $value) {
       $memcache->setOption($key, $value);
     }
-    // See README.txt for setting custom Memcache options when using the
+    // See README.md for setting custom Memcache options when using the
     // memcached PECL extension.
-    $memconf = variable_get('memcache_options', array());
+    $memconf = settings_get('memcache_options', array());
     foreach ($memconf as $key => $value) {
       $memcache->setOption($key, $value);
     }
-    if (($sasl_username = variable_get('memcache_sasl_username', '')) && ($sasl_password = variable_get('memcache_sasl_password', ''))) {
+    if (($sasl_username = settings_get('memcache_sasl_username', '')) && ($sasl_password = settings_get('memcache_sasl_password', ''))) {
       $memcache->setSaslAuthData($sasl_username, $sasl_password);
     }
     return $memcache;
@@ -859,11 +861,11 @@ function dmemcache_connect($memcache, $server, $weight) {
 
   @list($host, $port) = explode(':', trim($server));
   if (empty($host)) {
-    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php. Please review README.txt for proper configuration.', array('!server' => $server, '!ip' => t('127.0.0.1:11211'), '!host' => t('localhost:11211'), '!socket' => t('unix:///path/to/socket')), WATCHDOG_WARNING);
+    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php. Please review README.md for proper configuration.', array('!server' => $server, '!ip' => t('127.0.0.1:11211'), '!host' => t('localhost:11211'), '!socket' => t('unix:///path/to/socket')), WATCHDOG_WARNING);
   }
 
   if (!isset($memcache_persistent)) {
-    $memcache_persistent = variable_get('memcache_persistent', TRUE);
+    $memcache_persistent = settings_get('memcache_persistent', TRUE);
   }
   if (!isset($memcache_ascii_auth)) {
     $memcache_ascii_auth = _dmemcache_use_ascii_auth();
@@ -894,7 +896,7 @@ function dmemcache_connect($memcache, $server, $weight) {
   }
 
   if ($port_error) {
-    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php which does not include a port. Please review README.txt for proper configuration. You must specify both a server address and port such as "!ip" or "!host", or a unix socket such as "!socket".', array('!server' => $server, '!ip' => t('127.0.0.1:11211'), '!host' => t('localhost:11211'), '!socket' => t('unix:///path/to/socket')), WATCHDOG_WARNING);
+    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php which does not include a port. Please review README.md for proper configuration. You must specify both a server address and port such as "!ip" or "!host", or a unix socket such as "!socket".', array('!server' => $server, '!ip' => t('127.0.0.1:11211'), '!host' => t('localhost:11211'), '!socket' => t('unix:///path/to/socket')), WATCHDOG_WARNING);
   }
 
   if ($extension == 'Memcache') {
@@ -959,7 +961,7 @@ function dmemcache_close($memcache) {
  *   To force a reconnection to memcached, first call $mc->quit() or
  *   $mc->close() (as appropriate for your PECL extension).
  *
- * @return mixed
+ * @return Memcache|Memcached
  *   A Memcache object, or FALSE on failure.
  */
 function dmemcache_object($bin = NULL, $reset = FALSE) {
@@ -978,8 +980,8 @@ function dmemcache_object($bin = NULL, $reset = FALSE) {
   if (empty($memcache_cache) || empty($memcache_cache[$bin])) {
     if (empty($memcache_servers)) {
       // Load the variables from settings.php if set.
-      $memcache_servers = variable_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
-      $memcache_bins = variable_get('memcache_bins', array('cache' => 'default'));
+      $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+      $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
     }
 
     // If not manually set, default this cluster to 'default'.
@@ -1007,7 +1009,7 @@ function dmemcache_object($bin = NULL, $reset = FALSE) {
             }
             else {
               // Memcache connection failure. We can't log to watchdog directly
-              // because we're in an early Drupal bootstrap phase where watchdog
+              // because we're in an early Backdrop bootstrap phase where watchdog
               // is non-functional. Instead, register a shutdown handler so it
               // gets recorded at the end of the page load.
               register_shutdown_function('watchdog', 'memcache', 'Failed to connect to memcache server: !server', array('!server' => $server), WATCHDOG_ERROR);
@@ -1073,7 +1075,7 @@ function dmemcache_object_cluster($cluster) {
  */
 function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
   $prefix = '';
-  if ($prefixes = variable_get('memcache_key_prefix', '')) {
+  if ($prefixes = settings_get('memcache_key_prefix', '')) {
     if (is_array($prefixes)) {
       // If no custom prefix defined for bin, use 'default'.
       if (empty($prefixes[$bin])) {
@@ -1108,8 +1110,8 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
   foreach ($prefix as $p) {
     // When simpletest is running, emulate the simpletest database prefix here
     // to avoid the child site setting cache entries in the parent site.
-    if (isset($GLOBALS['drupal_test_info']['test_run_id'])) {
-      $p .= $GLOBALS['drupal_test_info']['test_run_id'];
+    if (isset($GLOBALS['backdrop_test_info']['test_run_id'])) {
+      $p .= $GLOBALS['backdrop_test_info']['test_run_id'];
     }
     $full_keys[] = urlencode($p . $bin . '-' . $key);
   }
@@ -1121,11 +1123,11 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
   // as it performs quickly with minimal collisions. You can enforce shorter
   // keys by setting memcache_key_max_length in settings.php.
   // [*]https://github.com/memcached/memcached/blob/master/doc/protocol.txt#L47
-  $maxlen = variable_get('memcache_key_max_length', 250);
+  $maxlen = settings_get('memcache_key_max_length', 250);
 
   foreach ($full_keys as $k => $full_key) {
     if (strlen($full_key) > $maxlen) {
-      $full_keys[$k] = urlencode($prefix[$k] . $bin) . '-' . hash(variable_get('memcache_key_hash_algorithm', 'sha1'), $key);
+      $full_keys[$k] = urlencode($prefix[$k] . $bin) . '-' . hash(settings_get('memcache_key_hash_algorithm', 'sha1'), $key);
       $full_keys[$k] .= '-' . substr(urlencode($key), 0, ($maxlen - 1) - strlen($full_keys[$k]) - 1);
     }
   }
@@ -1143,8 +1145,8 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
 /**
  * Track active keys with multi-piece values, necessary for efficient cleanup.
  *
- * We can't use variable_get/set for tracking this information because if the
- * variables array grows >1M and has to be split into pieces we'd get stuck in
+ * We can't use a cache table for tracking this information because if the
+ * cache value array grows >1M and has to be split into pieces we'd get stuck in
  * an infinite loop. Storing this information in memcache means it can be lost,
  * but in that case the pieces will still eventually be auto-expired by
  * memcache.
@@ -1159,7 +1161,7 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
  */
 function dmemcache_piece_cache_set($cid, $exp = NULL) {
   // Always refresh cached copy to minimize multi-thread race window.
-  $piece_cache = &drupal_static('dmemcache_piece_cache', array());
+  $piece_cache = &backdrop_static('dmemcache_piece_cache', array());
   $piece_cache = dmemcache_get('__dmemcache_piece_cache');
   if (!is_array($piece_cache)) {
     $piece_cache = array();
@@ -1190,9 +1192,9 @@ function dmemcache_piece_cache_set($cid, $exp = NULL) {
  *   Expiration time if key has multi-piece values, otherwise FALSE.
  */
 function dmemcache_piece_cache_get($name) {
-  static $drupal_static_fast;
-  if (!isset($drupal_static_fast)) {
-    $drupal_static_fast['piece_cache'] = &drupal_static('dmemcache_piece_cache', FALSE);
+  static $backdrop_static_fast;
+  if (!isset($backdrop_static_fast)) {
+    $backdrop_static_fast['piece_cache'] = &drupal_static('dmemcache_piece_cache', FALSE);
   }
   $piece_cache = &$drupal_static_fast['piece_cache'];
 
@@ -1227,17 +1229,14 @@ function dmemcache_stats_init() {
   static $drupal_static_fast;
 
   if (!isset($drupal_static_fast)) {
-    $drupal_static_fast = &drupal_static(__FUNCTION__, array('variable_checked' => NULL, 'user_access_checked' => NULL));
+    $drupal_static_fast = &backdrop_static(__FUNCTION__, array('variable_checked' => NULL, 'user_access_checked' => NULL));
   }
   $variable_checked = &$drupal_static_fast['variable_checked'];
   $user_access_checked  = &$drupal_static_fast['user_access_checked'];
 
-  // Confirm DRUPAL_BOOTSTRAP_VARIABLES has been reached. We don't use
-  // drupal_get_bootstrap_phase() as it's buggy. We can use variable_get() here
-  // because _drupal_bootstrap_variables() includes module.inc immediately
-  // after it calls variable_initialize().
-  if (!isset($variable_checked) && function_exists('module_list')) {
-    $variable_checked = variable_get('show_memcache_statistics', FALSE);
+  // Confirm BACKDROP_BOOTSTRAP_CONFIG has been reached.
+  if (!isset($variable_checked) && function_exists('config_get')) {
+    $variable_checked = config_get('memcache_admin.settings', 'show_statistics');
   }
   // If statistics are enabled we need to check user access.
   if (!empty($variable_checked) && !isset($user_access_checked) && !empty($GLOBALS['user']) && function_exists('user_access')) {
@@ -1309,14 +1308,14 @@ function _dmemcache_write_debug($action, $bin, $key, $rc) {
   static $memcache_debug_log = NULL;
   static $memcache_debug_verbose = NULL;
   if ($memcache_debug_log === NULL) {
-    $memcache_debug_log = variable_get('memcache_debug_log', FALSE);
-    $memcache_debug_verbose = variable_get('memcache_debug_verbose', FALSE);
+    $memcache_debug_log = settings_get('memcache_debug_log', FALSE);
+    $memcache_debug_verbose = settings_get('memcache_debug_verbose', FALSE);
   }
   if (($action == 'get' || $action == 'getMulti') && !$memcache_debug_verbose) {
     return;
   }
   elseif ($memcache_debug_log) {
-    $debug_log = strtr(variable_get('memcache_debug_log_format', "!timestamp|!action|!bin|!cid|!rc\n"), array('!timestamp' => date(variable_get('memcache_debug_time_format', 'U')), '!action' => $action, '!bin' => $bin, '!cid' => $key, '!rc' => (int) $rc));
+    $debug_log = strtr(settings_get('memcache_debug_log_format', "!timestamp|!action|!bin|!cid|!rc\n"), array('!timestamp' => date(settings_get('memcache_debug_time_format', 'U')), '!action' => $action, '!bin' => $bin, '!cid' => $key, '!rc' => (int) $rc));
     if (file_put_contents($memcache_debug_log, $debug_log, FILE_APPEND) === FALSE) {
       // This can lead to a lot of watchdog entries...
       register_shutdown_function('watchdog', 'memcache', 'Unable to write to debug log at !debug_file: !debug_log.', array('!debug_file' => $memcache_debug_log, '!debug_log' => $debug_log), WATCHDOG_ERROR);
@@ -1343,7 +1342,7 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
 
   if (!isset($memcache_ascii_auth)) {
     $memcache_ascii_auth = _dmemcache_use_ascii_auth();
-    $memcache_ascii_auth_token = variable_get('memcache_ascii_auth', FALSE);
+    $memcache_ascii_auth_token = settings_get('memcache_ascii_auth', FALSE);
   }
 
   // Immediately return if there is no memcache authentication.
@@ -1539,7 +1538,7 @@ function _dmemcache_use_ascii_auth() {
   static $memcache_ascii_auth = NULL;
 
   if (!isset($memcache_ascii_auth)) {
-    $memcache_ascii_auth = variable_get('memcache_ascii_auth', FALSE);
+    $memcache_ascii_auth = settings_get('memcache_ascii_auth', FALSE);
     $extension = dmemcache_extension();
 
     if ($memcache_ascii_auth && $extension == 'Memcache') {

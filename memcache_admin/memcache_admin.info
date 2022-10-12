@@ -1,5 +1,6 @@
+type = module
 name = Memcache Admin
 description = Adds a User Interface to monitor the Memcache for this site.
-core = 7.x
+backdrop = 1.x
 package = Performance and scalability
 configure = admin/config/system/memcache

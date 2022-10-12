@@ -1,6 +1,6 @@
 <?php
 
-class MemcacheTestCase extends DrupalWebTestCase {
+class MemcacheTestCase extends BackdropWebTestCase {
   protected $default_bin = 'cache';
   protected $default_cid = 'test_temporary';
   protected $default_value = 'MemcacheTest';
@@ -143,7 +143,7 @@ class MemCacheSavingCase extends MemcacheTestCase {
    * Test the saving and restoring of an array.
    */
   function testArray() {
-    $this->checkVariable(array('drupal1', 'drupal2' => 'drupal3', 'drupal4' => array('drupal5', 'drupal6')));
+    $this->checkVariable(array('backdrop1', 'backdrop2' => 'backdrop3', 'backdrop4' => array('backdrop5', 'backdrop6')));
   }
 
   /**
@@ -153,7 +153,7 @@ class MemCacheSavingCase extends MemcacheTestCase {
     $test_object = new stdClass();
     $test_object->test1 = $this->randomName(100);
     $test_object->test2 = 100;
-    $test_object->test3 = array('drupal1', 'drupal2' => 'drupal3', 'drupal4' => array('drupal5', 'drupal6'));
+    $test_object->test3 = array('backdrop1', 'backdrop2' => 'backdrop3', 'backdrop4' => array('backdrop5', 'backdrop6'));
 
     cache_set('test_object', $test_object, 'cache');
     $cache = cache_get('test_object', 'cache');
@@ -256,11 +256,10 @@ class MemCacheClearCase extends MemcacheTestCase {
     // should return false.
     $this->assertFalse($this->checkCacheExists('test_cid', $this->default_value), 'Cache item was cleared successfully.');
 
-    // However permament items should stay in place.
+    // However, permanent items should stay in place.
     $this->assertTrue($this->checkCacheExists('test_cid_2', $this->default_value), 'Cache item was not cleared');
 
-    // If $_SESSION['cache_flush'] is not set, then the expired item should be returned.
-    unset($_SESSION['cache_flush']);
+    // Expired item should be returned.
     $this->assertTrue($this->checkCacheExists('test_cid', $this->default_value), 'Cache item is still returned due to minimum cache lifetime.');
 
     // Set a much shorter cache lifetime.

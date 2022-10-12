@@ -91,8 +91,8 @@ function memcache_test_lock_exit() {
  * Set a value into the cache.
  */
 function memcache_test_set($key, $value) {
-  $cache = cache_set($key, $value, 'MemcacheDrupal');
-  drupal_json_output(cache_get($key, 'MemcacheDrupal'));
+  $cache = cache_set($key, $value, 'MemcacheBackdrop');
+  backdrop_json_output(cache_get($key, 'MemcacheBackdrop'));
 }
 
 /**
@@ -100,31 +100,30 @@ function memcache_test_set($key, $value) {
  */
 function memcache_test_get($key) {
   $GLOBALS['in_test'] = TRUE;
-  drupal_json_output(cache_get($key, 'MemcacheDrupal'));
+  backdrop_json_output(cache_get($key, 'MemcacheBackdrop'));
 }
 
 /**
  * Clear cache using a wildcard.
  */
 function memcache_test_wildcard_flush($key) {
-  $_SESSION['cache_flush'] = array();
-  cache_clear_all($key, 'MemcacheDrupal', TRUE);
-  drupal_json_output($key);
+  cache_clear_all($key, 'MemcacheBackdrop', TRUE);
+  backdrop_json_output($key);
 }
 
 /**
  * Clear cache using a specific key.
  */
 function memcache_test_clear($key) {
-  cache_clear_all($key, 'MemcacheDrupal');
+  cache_clear_all($key, 'MemcacheBackdrop');
 
-  drupal_json_output($key);
+  backdrop_json_output($key);
 }
 
 /**
 * Clear complete cache.
 */
 function memcache_test_clear_cache() {
-  cache_clear_all(NULL, 'MemcacheDrupal');
-  drupal_json_output();
+  cache_clear_all(NULL, 'MemcacheBackdrop');
+  backdrop_json_output();
 }
