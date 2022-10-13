@@ -42,4 +42,5 @@ function memcache_admin_requirements($phase) {
  */
 function memcache_admin_update_1000() {
   config_set('memcache_admin.settings', 'show_statistics', update_variable_get('show_memcache_statistics', FALSE));
+  update_variable_del('show_memcache_statistics');
 }

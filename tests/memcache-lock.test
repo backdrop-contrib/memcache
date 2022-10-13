@@ -1,27 +1,12 @@
 <?php
-
 /**
  * @file
- * Tests for the lock system.
+ * Tests for the Memcache-based lock system.
  */
 
+include_once __DIR__ . '/memcache.test';
+
 class MemcacheLockFunctionalTest extends MemcacheTestCase {
-  protected $default_bin = '';
-
-  public static function getInfo() {
-    return array(
-      'name' => 'Locking framework tests',
-      'description' => 'Confirm locking works between two separate requests.',
-      'group' => 'Memcache',
-    );
-  }
-
-  /**
-   * @see MemcacheTestCase::setUp()
-   */
-  public function setUp() {
-    parent::setUp('memcache_test');
-  }
 
   /**
    * Confirm that we can acquire and release locks in two parallel requests.

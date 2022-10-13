@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * Implementation of cache.inc with memcache logic included.
@@ -10,40 +9,39 @@ require_once __DIR__ . '/dmemcache.inc';
 /**
  * Defines the period after which wildcard clears are not considered valid.
  */
-define('MEMCACHE_WILDCARD_INVALIDATE', 86400 * 28);
-define('MEMCACHE_CONTENT_CLEAR', 'MEMCACHE_CONTENT_CLEAR');
+const MEMCACHE_WILDCARD_INVALIDATE = 2419200;
 
 /**
  * Implementation of cache.inc with memcache logic included
  */
 class BackdropMemcache implements BackdropCacheInterface {
   /**
-   * @var Memcache|Memcached The raw memcache(d) object for this environment.
+   * @var Memcache|Memcached The raw PECL memcache(d) object for this bin.
    */
   protected $memcache;
 
   /**
-   * @var array
+   * @var string The cache bin name.
+   */
+  protected $bin;
+
+  /**
+   * @var array Array of cache key prefixes and when they were last invalidated.
    */
   protected $wildcard_flushes;
 
   /**
-   * @var int
+   * @var int Maximum length of time a wildcard flush timestamp is respected.
    */
-  protected $invalidate;
+  protected $wildcard_lifetime;
 
   /**
-   * @var int
+   * @var int Timestamp of the last full flush of this cache bin.
    */
   protected $cache_flush;
 
   /**
-   * @var int
-   */
-  protected $cache_content_flush;
-
-  /**
-   * @var int
+   * @var int Timestamp of the last garbage collection of this cache bin.
    */
   protected $cache_temporary_flush;
 
@@ -51,6 +49,15 @@ class BackdropMemcache implements BackdropCacheInterface {
    * @var int
    */
   protected $flushed;
+
+  /**
+   * @var array A list of cache IDs that have been set this request.
+   *
+   * This variable is utilized to keep track of cache entries that are set
+   * within the same REQUEST_TIME (the same second) and return them as valid
+   * even when a cache flush has occurred within the same request.
+   */
+  protected $set_cids = array();
 
   /**
    * Constructs a BackdropMemcache object.
@@ -69,7 +76,13 @@ class BackdropMemcache implements BackdropCacheInterface {
    */
   public function get($cid) {
     $cache = dmemcache_get($cid, $this->bin, $this->memcache);
-    return $this->valid($cid, $cache) ? $cache : FALSE;
+    $valid = $this->valid($cid, $cache);
+    if ($valid) {
+      return $cache;
+    }
+    else {
+      return FALSE;
+    }
   }
 
   /**
@@ -112,13 +125,17 @@ class BackdropMemcache implements BackdropCacheInterface {
       // Item is expired if the request time is greater than expire time.
       $cache_timestamp_expired = $cache->expire <= REQUEST_TIME;
 
+      // The set_cids array is checked to ensure any cache IDs set after a flush
+      // within this same request are valid.
+      $set_this_request = isset($this->set_cids[$cache->cid]);
+
       // Items created before the last full wildcard flush against this bin are
       // always invalid.
-      if ($cache->created <= $this->cache_flush) {
+      if (!$set_this_request && $cache->created <= $this->cache_flush) {
         $cache = FALSE;
       }
       // Test for expired items.
-      elseif (($cache->expire == CACHE_TEMPORARY && $cache_garbage_collected) || ($cache->expire > 0 && $cache_timestamp_expired)) {
+      elseif (!$set_this_request && ($cache->expire == CACHE_TEMPORARY && $cache_garbage_collected) || ($cache->expire > 0 && $cache_timestamp_expired)) {
         // If the memcache_stampede_protection variable is set, allow one
         // process to rebuild the cache entry while serving expired content to
         // the rest. Note that core happily returns expired cache items as valid
@@ -134,10 +151,6 @@ class BackdropMemcache implements BackdropCacheInterface {
         else {
           $cache = FALSE;
         }
-      }
-      // Items created before the last content flush on this bin are invalid.
-      elseif ($cache->expire != CACHE_PERMANENT && $cache->created <= $this->cache_content_flush) {
-        $cache = FALSE;
       }
       // Finally, check for wildcard clears against this cid.
       else {
@@ -176,9 +189,9 @@ class BackdropMemcache implements BackdropCacheInterface {
 
     if (settings_get('memcache_pagecache_header', FALSE) && ($this->bin == 'cache_page')) {
       // Per RFC-6648, don't start with X-
-      $header = t('Backdrop-Pagecache-Memcache: !status', array('!status' => $valid ? t('HIT') : t('MISS')));
+      $header = t('Backdrop-Pagecache-Memcache: !status', ['!status' => $valid ? t('HIT') : t('MISS')]);
       if ($valid) {
-        $header .= t(', age=!age', array('!age' => REQUEST_TIME - $cache->created));
+        $header .= t(', age=!age', ['!age' => REQUEST_TIME - $cache->created]);
       }
       header($header);
     }
@@ -192,11 +205,9 @@ class BackdropMemcache implements BackdropCacheInterface {
   public function set($cid, $data, $expire = CACHE_PERMANENT) {
     $created_microtime = round(microtime(TRUE), 3);
 
-    // Positive expiration values of less than 30 days are seconds. Convert to
-    // an absolute timestamp.
-    if ($expire > 0 && $expire < 2592000) {
-      $expire = REQUEST_TIME + $expire;
-    }
+    // Record this as being a freshly set cache ID so it's considered valid
+    // even if a cache flush occurred within this same request.
+    $this->set_cids[$cid] = $expire;
 
     // Create new cache object.
     $cache = new stdClass();
@@ -244,7 +255,19 @@ class BackdropMemcache implements BackdropCacheInterface {
    *    The cache ID to delete.
    */
   function delete($cid) {
+    // Entity cache passes in an array instead of a single ID. This would be
+    // fixed by removing core's use of cache_clear_all().
+    // See https://github.com/backdrop/backdrop-issues/issues/2158
+    // @todo Remove this when fixed in core.
+    if (is_array($cid)) {
+      $this->deleteMultiple($cid);
+      return;
+    }
+
     dmemcache_delete($cid, $this->bin, $this->memcache);
+    if (isset($this->set_cids[$cid])) {
+      unset($this->set_cids[$cid]);
+    }
   }
 
   /**
@@ -271,25 +294,33 @@ class BackdropMemcache implements BackdropCacheInterface {
   }
 
   /**
-   * Flushes all cache items in a bin.
+   * Remove all items from a cache bin.
+   *
+   * In a SQL-based cache, this truncates the cache table.
+   *
+   * Memcache does have a flush_all command, but because a single Memcache
+   * instance may have multiple cache bins stored in it, we cannot use it.
+   *
+   * Instead, store a timestamp of the last full bin flush, and any items
+   * retrieved before that time are considered invalid and not returned.
    */
   function flush() {
-    // Update the timestamp of the last CACHE_TEMPORARY clear. All
-    // temporary cache items created before this will be invalidated.
-    $this->cache_temporary_flush = time();
-    $this->variable_set("cache_temporary_flush_$this->bin", $this->cache_temporary_flush);
+    $this->cache_flush = REQUEST_TIME;
+    state_set('memcache_flush_' . $this->bin, $this->cache_flush);
 
-    // The entire bin was flushed, remove any wildcard flushes as they are no
-    // longer relevant.
+    // Remove the list of set cache IDs that occurred prior to this flush.
+    $this->set_cids = array();
+
+    // Remove any wildcard flushes as they are no longer relevant.
     if (isset($this->wildcard_flushes[$this->bin])) {
       // It is possible for multiple bins to be flushed during a single
       // page load, so cache the list in a static variable which is later
       // read in the flushBinsOnShutdown callback during shutdown.
-      $bins_flushed = &backdrop_static('memcache_bins_flushed', array());
+      $bins_flushed = &backdrop_static('memcache_bins_flushed', []);
       if (empty($bins_flushed)) {
         // Only register the shutdown function once, on the first bin
         // flushed during this page load.
-        register_shutdown_function(array('BackdropMemcache', 'flushBinsOnShutdown'));
+        register_shutdown_function(['BackdropMemcache', 'flushBinsOnShutdown']);
       }
       // Add to the list of bins that have been flushed.
       $bins_flushed[] = $this->bin;
@@ -297,29 +328,39 @@ class BackdropMemcache implements BackdropCacheInterface {
   }
 
   /**
-   * Performs garbage collection on a cache bin. Removing expired items.
+   * Performs "garbage collection" on a cache bin.
+   *
+   * In the SQL-based cache, this deletes all temporary items.
+   *
+   * Memcache does not have the concept of cache lifetime. Instead of deleting
+   * expired items, we save a timestamp of when temporary items are considered
+   * invalid, and do not return those items in the future.
    */
   function garbageCollection() {
-
+    // Update the timestamp of the last CACHE_TEMPORARY clear. All
+    // temporary cache items created before this will be considered invalid.
+    $this->cache_temporary_flush = REQUEST_TIME;
+    state_set('memcache_temporary_flush_' . $this->bin, $this->cache_temporary_flush);
+    // Remove any temporary items set this request.
+    $this->set_cids = array_diff($this->set_cids, array(CACHE_TEMPORARY));
   }
 
-
   /**
-   * Cleanup wilcard flushes on shutdown when one or more bins are flushed.
+   * Cleanup wildcard flushes on shutdown when one or more bins are flushed.
    */
   static function flushBinsOnShutdown() {
     // Get a fresh copy of the wildcard_flushes variable.
-    $wildcard_flushes = settings_get('memcache_wildcard_flushes', array());
+    $wildcard_flushes = state_get('memcache_wildcard_flushes', []);
     // Load the static variable that was populated during clear().
-    $bins_flushed = &backdrop_static('memcache_bins_flushed', array());
+    $bins_flushed = &backdrop_static('memcache_bins_flushed', []);
     // Step through each bin and fully remove it from wildcard_flushes.
     foreach ($bins_flushed as $bin) {
       if (isset($wildcard_flushes[$bin])) {
         unset($wildcard_flushes[$bin]);
       }
     }
-    // Store the memcache_wildcard_flushes variable without the flushed bins.
-    settings_get('memcache_wildcard_flushes', $wildcard_flushes);
+    // Store the memcache_wildcard_flushes state without the flushed bins.
+    state_set('memcache_wildcard_flushes', $wildcard_flushes);
   }
 
   /**
@@ -346,11 +387,11 @@ class BackdropMemcache implements BackdropCacheInterface {
    * load doesn't add overhead.
    */
   protected function wildcards($cid, $flush = FALSE) {
-    static $wildcards = array();
-    $matching = array();
+    static $wildcards = [];
+    $matching = [];
 
     if (!is_string($cid) && !is_int($cid)) {
-      register_shutdown_function('watchdog', 'memcache', 'Invalid cache id received in memcache.inc wildcards() of type !type.', array('!type' => gettype($cid)), WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'Invalid cache id received in memcache.inc wildcards() of type !type.', ['!type' => gettype($cid)], WATCHDOG_ERROR);
       return $matching;
     }
     $length = strlen($cid);
@@ -373,7 +414,7 @@ class BackdropMemcache implements BackdropCacheInterface {
       // valid wildcard flushes in this bin.
       if (isset($this->wildcard_flushes[$this->bin][$wildcard_key])) {
         foreach ($this->wildcard_flushes[$this->bin][$wildcard_key] as $flush_length => $timestamp) {
-          if ($length >= $flush_length && $timestamp >= (REQUEST_TIME - $this->invalidate)) {
+          if ($length >= $flush_length && $timestamp >= (REQUEST_TIME - $this->wildcard_lifetime)) {
             $wildcard = '.wildcard-' . substr($cid, 0, $flush_length);
             if (isset($wildcards[$this->bin][$wildcard])) {
               $matching[$wildcard] = $wildcards[$this->bin][$wildcard];
@@ -419,7 +460,7 @@ class BackdropMemcache implements BackdropCacheInterface {
       // Avoid too many calls to variable_set() by only recording a flush for
       // a fraction of the wildcard invalidation variable, per cid length.
       // Defaults to 28 / 4, or one week.
-      if (!isset($this->wildcard_flushes[$this->bin][$key][$length]) || (REQUEST_TIME - $this->wildcard_flushes[$this->bin][$key][$length] > $this->invalidate / 4)) {
+      if (!isset($this->wildcard_flushes[$this->bin][$key][$length]) || (REQUEST_TIME - $this->wildcard_flushes[$this->bin][$key][$length] > $this->wildcard_lifetime / 4)) {
 
         // If there are more than 50 different wildcard keys for this bin
         // shorten the key by one, this should reduce variability by
@@ -436,13 +477,14 @@ class BackdropMemcache implements BackdropCacheInterface {
         // along with cache consistency.
         if ($length < $key_length) {
           $this->wildcard_flushes[$this->bin] = array();
-          $this->variable_set("cache_flush_$this->bin", time());
-          $this->cache_flush = time();
+          state_set('memcache_flush_' . $this->bin, REQUEST_TIME);
+          $this->cache_flush = REQUEST_TIME;
+          $this->set_cids = array();
         }
         $key = substr($cid, 0, $key_length);
         $this->wildcard_flushes[$this->bin][$key][$length] = REQUEST_TIME;
 
-        variable_set('memcache_wildcard_flushes', $this->wildcard_flushes);
+        state_set('memcache_wildcard_flushes', $this->wildcard_flushes);
       }
       $key = '.wildcard-' . $cid;
       if (isset($wildcards[$this->bin][$key])) {
@@ -463,7 +505,7 @@ class BackdropMemcache implements BackdropCacheInterface {
     // Previously cached content won't have ->flushes defined.  We could
     // force flush, but instead leave this up to the site admin.
     $flushes = isset($cache->flushes) ? (int) $cache->flushes : 0;
-    if ($flushes < (int) $this->wildcardFlushes($cid)) {
+    if ($flushes < $this->wildcardFlushes($cid)) {
       return FALSE;
     }
     return TRUE;
@@ -496,7 +538,7 @@ class BackdropMemcache implements BackdropCacheInterface {
 
     if (!function_exists('lock_acquire')) {
       // Bootstrap failed, log error.
-      register_shutdown_function('watchdog', 'memcache', 'Bootstrap failed in lockInit(), lock_acquire() is not available. (phase:!phase)', array('!phase' => backdrop_get_bootstrap_phase()), WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'Bootstrap failed in lockInit(), lock_acquire() is not available. (phase:!phase)', ['!phase' => backdrop_get_bootstrap_phase()], WATCHDOG_ERROR);
       return FALSE;
     }
 
@@ -579,47 +621,16 @@ class BackdropMemcache implements BackdropCacheInterface {
    * settings.
    */
   public function reloadVariables() {
-    $this->wildcard_flushes = settings_get('memcache_wildcard_flushes', array());
-    $this->invalidate = settings_get('memcache_wildcard_invalidate', MEMCACHE_WILDCARD_INVALIDATE);
-    $this->cache_flush = settings_get('cache_flush_' . $this->bin);
-    $this->cache_content_flush = settings_get('cache_content_flush_' . $this->bin, 0);
-    $this->cache_temporary_flush = settings_get('cache_temporary_flush_' . $this->bin, 0);
-    $this->flushed = min($this->cache_flush, REQUEST_TIME);
-  }
+    $this->wildcard_lifetime = settings_get('memcache_wildcard_lifetime', MEMCACHE_WILDCARD_INVALIDATE);
+    $this->set_cids = array();
 
-  /**
-   * Re-implementation of variable_set() that writes through instead of clearing.
-   */
-  public function variable_set($name, $value) {
-    global $conf;
-
-    // If the value appears unchanged, do nothing.
-    if (isset($conf[$name]) && $conf[$name] === $value) {
-      return;
+    // Only reload variables if state system is available.
+    if (backdrop_static('states')) {
+      $this->wildcard_flushes = state_get('memcache_wildcard_flushes', array());
+      $this->cache_flush = state_get('memcache_flush_' . $this->bin, 0);
+      $this->cache_temporary_flush = state_get('memcache_temporary_flush_' . $this->bin, 0);
+      $this->flushed = min($this->cache_flush, REQUEST_TIME);
     }
 
-    // When lots of writes happen in a short period of time db_merge can throw
-    // errors. This should only happen if another request has written the
-    // variable first, so we catch the error to prevent a fatal error.
-    try {
-      db_merge('variable')
-        ->key(array('name' => $name))
-        ->fields(array('value' => serialize($value)))
-        ->execute();
-    }
-    catch (Exception $e) {
-      // We can safely ignore the error, since it's likely a cache flush
-      // timestamp which should still be accurate.
-    }
-
-    // If the variables are cached, get a fresh copy, update with the new value
-    // and set it again.
-    if ($cached = cache_get('variables', 'cache_bootstrap')) {
-      $variables = $cached->data;
-      $variables[$name] = $value;
-      cache_set('variables', $variables, 'cache_bootstrap');
-    }
-    // If the variables aren't cached, there's no need to do anything.
-    $conf[$name] = $value;
   }
 }

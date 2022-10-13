@@ -34,7 +34,8 @@ description = Test that statistics are being recorded appropriately.
 group = Memcache
 file = memcache.test
 
-; Added by Backdrop CMS packaging script on 2022-08-02
-project = metatag
-version = 1.x-1.22.2
-timestamp = 1659484910
+[MemcacheLockFunctionalTest]
+name = Locking framework tests
+description = Confirm locking works between two separate requests.
+group = Memcache
+file = memcache-lock.test

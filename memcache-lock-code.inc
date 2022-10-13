@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * A memcache based implementation of a locking mechanism.

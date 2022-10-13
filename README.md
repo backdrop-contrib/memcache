@@ -41,7 +41,7 @@ is important.
    installations.
 7. Edit settings.php to make memcache the default cache class, for example:
    ```
-   $settings['cache_backends'][] = 'modules/memcache/memcache.inc';
+   $settings['cache_backends'][] = 'modules/contrib/memcache/memcache.inc';
    $settings['cache_default_class'] = 'BackdropMemcache';
    ```
    The cache_backends path needs to be adjusted based on where you installed
@@ -54,10 +54,10 @@ Basic Configuration
 For simple configurations with a single web server and memcached running on the
 same machine, this configuration is the most typical:
 
-```
-$settings['cache_backends'][] = 'modules/memcache/memcache.inc';
+```php
+$settings['cache_backends'][] = 'modules/contrib/memcache/memcache.inc';
 $settings['cache_default_class'] = 'BackdropMemcache';
-$settings['lock_inc'] = 'modules/memcache/memcache-lock.inc';
+$settings['lock_inc'] = 'modules/contrib/memcache/memcache-lock.inc';
 $settings['memcache_stampede_protection'] = TRUE;
 $settings['memcache_servers'] = array('localhost:11211' => 'default');
 ```
@@ -155,8 +155,8 @@ The memcache-lock.inc file included with this module can be used as a drop-in
 replacement for the database-mediated locking mechanism provided by Backdrop
 core. To enable, define the following in your settings.php:
 
-```php
-$settings['lock_inc'] = 'modules/memcache/memcache-lock.inc';
+```
+$settings['lock_inc'] = 'modules/contrib/memcache/memcache-lock.inc';
 ```
 
 Locks are written in the 'semaphore' bin, which will map to the 'default'
@@ -197,10 +197,8 @@ $settings['memcache_stampede_protection_ignore'] = array(
   'cache_bootstrap' => array(
     'module_implements',
     'variables',
-    'lookup_cache',
     'schema:runtime:*',
     'theme_registry:runtime:*',
-    '_backdrop_file_scan_cache',
   ),
   // Ignore all cids in the 'cache' bin starting with 'i18n:string:'
   'cache' => array(
@@ -216,19 +214,19 @@ $settings['memcache_stampede_protection_ignore'] = array(
 Only change the following stampede protection settings if you're sure you know
 what you're doing, which requires first reading the memcache.inc code.
 
-The value passed to lock_acquire, defaults to '15':
-```php
+The number of seconds passed to lock_acquire, defaults to '15':
+```
 $settings['memcache_stampede_semaphore'] = 15;
 ```
 
-The value passed to lock_wait, defaults to 5:
-```php
+The number of seconds passed to lock_wait, defaults to 5:
+```
 $settings['memcache_stampede_wait_time'] = 5;
 ```
 
 The maximum number of calls to lock_wait() due to stampede protection during a
 single request, defaults to 3:
-```php
+```
 $settings['memcache_stampede_wait_limit'] = 3;
 ```
 
@@ -247,7 +245,7 @@ setting the 'X-Backdrop-Cache' response header with a value of HIT or MISS. If
 you'd like to confirm whether pages are actually being retrieved from Memcache
 and not another backend, you can enable the following option:
 
-```php
+```
 $settings['memcache_pagecache_header'] = TRUE;
 ```
 
@@ -278,13 +276,13 @@ you need to include a unique prefix for each Backdrop installation in the $conf
 array of settings.php. This can be a single string prefix, or a keyed array of
 bin => prefix pairs:
 
-```php
+```
 $settings['memcache_key_prefix'] = 'something_unique';
 ```
 
 Using a per-bin prefix:
 
-```php
+```
 $settings['memcache_key_prefix'] = array(
   'default' => 'something_unique',
   'cache_page' => 'something_else_unique',
@@ -307,7 +305,7 @@ both instances. (For more discussion see the issue where support was added,
 https://www.drupal.org/node/1084448.) This feature is enabled when you configure
 prefixes as arrays within arrays. For example:
 
-```php
+```
 // Live instance.
 $settings['memcache_key_prefix'] = array(
   'default' => array(
@@ -320,7 +318,7 @@ $settings['memcache_key_prefix'] = array(
 The above would be the configuration of your live instance. Then, on your
 administrative instance you would flip the keys:
 
-```php
+```
 // Administrative instance.
 $settings['memcache_key_prefix'] = array(
   'default' => array(
@@ -572,7 +570,7 @@ if (!isset($data->data) || $data->data !== $value) {
 }
 else {
   // Test a delete as well.
-  cache_clear_all($cid, 'cache');
+  cache()->delete($cid);
 }
 ```
 

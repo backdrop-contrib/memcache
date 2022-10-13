@@ -4,6 +4,17 @@
  * @file
  * Provides very limited functionality such as hook_requirements().
  *
- * memcache.inc must be configured in settings.php, and memcache.module is not
+ * memcache.inc must be configured in settings.php, and memcache module is not
  * necessary to use memcache as a cache backend.
  */
+
+/**
+ * Implements hook_autoload_info().
+ */
+function memcache_autoload_info() {
+  return array(
+    // Probably unnecessary in most situations, but if the memcache class is
+    // utilized outside being a configured cache class, this auto-loads it.
+    'BackdropMemcache' => 'memcache.inc',
+  );
+}
