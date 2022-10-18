@@ -688,8 +688,28 @@ class MemCacheStatisticsTestCase extends MemcacheTestCase {
     foreach ($cache_bootstrap_cids as $stat) {
       $key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'bootstrap-' . $stat;
       $this->assertRaw("<td>get</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (get).', array('@key' => $key)));
-      // @todo: This is missing, perhaps the cache is getting set earlier?
+      // @todo: This set is missing because it happens in the background
+      // processing after the page is delivered.
       //$this->assertRaw("<td>set</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (set).', array('@key' => $key)));
+    }
+
+    // Clear the internal statistics store.
+    $_dmemcache_stats = array('all' => array(), 'ops' => array());
+    cache($this->default_bin)->get($this->default_cid);
+    $internal_keys = array(
+      '_wildcard_flushes',
+      '_flush_timestamp',
+      '_garbage_collection_timestamp',
+    );
+    // The first three cache gets should be the internal keys.
+    foreach ($internal_keys as $index => $internal_key) {
+      // No flush timestamp will be set yet.
+      $expected_status = $internal_key === '_flush_timestamp' ? 'miss' : 'hit';
+      $stat_key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'bootstrap-' . $internal_key;
+      $this->assertEqual($_dmemcache_stats['all'][$index][1], 'get', "Get action on internal key $internal_key successful.");
+      $this->assertEqual($_dmemcache_stats['all'][$index][2], 'bootstrap', "Internal $internal_key stored in bootstrap bin.");
+      $this->assertEqual($_dmemcache_stats['all'][$index][3], $stat_key, "Internal key $internal_key found.");
+      $this->assertEqual($_dmemcache_stats['all'][$index][4], $expected_status, "Get action on internal key $internal_key is a $expected_status.");
     }
 
     // Clear the internal statistics store.
@@ -719,13 +739,13 @@ class MemCacheStatisticsTestCase extends MemcacheTestCase {
 
     // Clear the internal statistics store.
     $_dmemcache_stats = array('all' => array(), 'ops' => array());
-    // Confirm that statistics are not recorded for get()'s when disabled.
+    // Confirm that statistics are not recorded for set()'s when disabled.
     cache_set($this->default_cid, $this->default_value, $this->default_bin);
     $this->assertEqual($_dmemcache_stats, array('all' => array(), 'ops' => array()));
 
     // Clear the internal statistics store.
     $_dmemcache_stats = array('all' => array(), 'ops' => array());
-    // Confirm that statistics are not recorded for set()'s when disabled.
+    // Confirm that statistics are not recorded for get()'s when disabled.
     cache_get($this->default_cid, $this->default_bin);
     $this->assertEqual($_dmemcache_stats, array('all' => array(), 'ops' => array()));
   }
