@@ -14,7 +14,7 @@
 function lock_initialize() {
   global $locks;
 
-  $locks = array();
+  $locks = [];
 }
 
 /**

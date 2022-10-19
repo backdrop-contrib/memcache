@@ -12,16 +12,19 @@ function memcache_admin_requirements($phase) {
   // Ensure translations don't break during installation.
   $t = get_t();
 
-  $requirements = array();
+  $requirements = [];
 
   if ($phase == 'install') {
     if (!function_exists('dmemcache_object_cluster')) {
-      $requirements['memcache_admin'] = array(
+      $requirements['memcache_admin'] = [
         'title' => $t('Memcache admin'),
         'value' => $t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc.'),
-        'description' => $t('You must properly configure cache_backends in %settings before enabling the memcache_admin module. Please review %readme for more information.', array('%settings' => 'settings.php', '%readme' => 'README.md')),
+        'description' => $t('You must properly configure cache_backends in %settings before enabling the memcache_admin module. Please review %readme for more information.', [
+          '%settings' => 'settings.php',
+          '%readme' => 'README.md',
+        ]),
         'severity' => REQUIREMENT_ERROR,
-      );
+      ];
     }
   }
   else if ($phase == 'runtime') {
@@ -29,7 +32,7 @@ function memcache_admin_requirements($phase) {
       $requirements['memcache_admin'] = array(
         'title' => $t('Memcache admin'),
         'value' => $t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc.'),
-        'description' => $t('You have enabled the memcache_admin module without properly configuring cache_backends in %settings. Please review %readme for more information.', array('%settings' => 'settings.php', '%readme' => 'README.md')),
+        'description' => $t('You have enabled the memcache_admin module without properly configuring cache_backends in %settings. Please review %readme for more information.', ['%settings' => 'settings.php', '%readme' => 'README.md']),
         'severity' => REQUIREMENT_WARNING,
       );
     }

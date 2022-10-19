@@ -18,7 +18,7 @@ file = memcache.test
 
 [MemcacheStampedeProtection]
 name = Memcache stampede protection
-description =Tests memcache stampede protection.
+description = Tests memcache stampede protection.
 group = Memcache
 file = memcache.test
 

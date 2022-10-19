@@ -9,37 +9,37 @@
  * Implements hook_perm().
  */
 function memcache_admin_permission() {
-  return array(
-    'access memcache statistics' => array(
+  return [
+    'access memcache statistics' => [
       'title' => t('Access memcache statistics'),
-    ),
-    'access slab cachedump' => array(
+    ],
+    'access slab cachedump' => [
       'title' => t('Access cachedump of memcache slab'),
       'restrict access' => TRUE,
-    ),
-  );
+    ],
+  ];
 }
 
 /**
  * Implements hook_menu().
  */
 function memcache_admin_menu() {
-  $items['admin/config/system/memcache'] = array(
+  $items['admin/config/system/memcache'] = [
     'title' => 'Memcache',
     'description' => 'Show or hide memcache statistics at the bottom of each page.',
     'page callback' => 'backdrop_get_form',
-    'page arguments' => array('memcache_admin_admin_settings'),
-    'access arguments' => array('administer site configuration'),
-  );
-  $items['admin/reports/memcache'] = array(
+    'page arguments' => ['memcache_admin_admin_settings'],
+    'access arguments' => ['administer site configuration'],
+  ];
+  $items['admin/reports/memcache'] = [
     'title' => 'Memcache statistics',
     'description' => "View statistics for all configured memcache servers.",
     'page callback' => 'memcache_admin_stats',
-    'access arguments' => array('access memcache statistics'),
+    'access arguments' => ['access memcache statistics'],
     'weight' => 1,
-  );
-  $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
-  $clusters = array();
+  ];
+  $memcache_servers = settings_get('memcache_servers', ['127.0.0.1:11211' => 'default']);
+  $clusters = [];
   foreach ($memcache_servers as $server => $bin) {
     if (function_exists('dmemcache_object_cluster') && $cluster = dmemcache_object_cluster($bin)) {
       $name = $cluster['cluster'];
@@ -58,30 +58,30 @@ function memcache_admin_menu() {
         }
       }
 
-      $items["admin/reports/memcache/$cluster"] = array(
+      $items["admin/reports/memcache/$cluster"] = [
         'title' => $cluster,
         'type' => $count == 0 ? MENU_DEFAULT_LOCAL_TASK : MENU_LOCAL_TASK,
         'page callback' => 'memcache_admin_stats',
-        'page arguments' => array($cluster),
-        'access arguments' => array('access memcache statistics'),
+        'page arguments' => [$cluster],
+        'access arguments' => ['access memcache statistics'],
         'weight' => $count++,
-      );
+      ];
       foreach ($cluster_info['servers'] as $server) {
-        $items["admin/reports/memcache/$cluster/$server"] = array(
+        $items["admin/reports/memcache/$cluster/$server"] = [
           'title' => check_plain($server),
           'type' => MENU_CALLBACK,
           'page callback' => 'memcache_admin_stats_raw',
-          'page arguments' => array($cluster, $server),
-          'access arguments' => array('access memcache statistics'),
-        );
+          'page arguments' => [$cluster, $server],
+          'access arguments' => ['access memcache statistics'],
+        ];
         foreach (memcache_admin_stats_types($cluster) as $type) {
-          $items["admin/reports/memcache/$cluster/$server/$type"] = array(
+          $items["admin/reports/memcache/$cluster/$server/$type"] = [
             'type' => MENU_CALLBACK,
             'page callback' => 'memcache_admin_stats_raw',
-            'page arguments' => array($cluster, $server, $type),
+            'page arguments' => [$cluster, $server, $type],
             'title' => $type,
-            'access arguments' => array('access memcache statistics'),
-          );
+            'access arguments' => ['access memcache statistics'],
+          ];
         }
       }
     }
@@ -94,10 +94,10 @@ function memcache_admin_menu() {
  * Implements hook_config_info().
  */
 function memcache_admin_config_info() {
-  $prefixes['memcache_admin.settings'] = array(
+  $prefixes['memcache_admin.settings'] = [
     'label' => t('Memcache Admin Settings'),
     'group' => t('Configuration'),
-  );
+  ];
   return $prefixes;
 }
 
@@ -106,12 +106,12 @@ function memcache_admin_config_info() {
  */
 function memcache_admin_admin_settings() {
   $form['#config'] = 'memcache_admin.settings';
-  $form['show_statistics'] = array(
+  $form['show_statistics'] = [
     '#type' => 'checkbox',
     '#title' => t('Show memcache statistics at the bottom of each page'),
     '#default_value' => config_get('memcache_admin.settings', 'show_statistics'),
     '#description' => t("These statistics will be visible to users with the 'access memcache statistics' permission."),
-  );
+  ];
   return system_settings_form($form);
 }
 
@@ -129,7 +129,10 @@ function _memcache_admin_default_bin($bin) {
  * Statistics report: format total and open connections.
  */
 function _memcache_admin_stats_connections($stats) {
-  return t('!current open of !total total', array('!current' => number_format($stats['curr_connections']), '!total' => number_format($stats['total_connections'])));
+  return t('!current open of !total total', [
+    '!current' => number_format($stats['curr_connections']),
+    '!total' => number_format($stats['total_connections']),
+  ]);
 }
 
 /**
@@ -148,7 +151,12 @@ function _memcache_admin_stats_sets($stats) {
   else {
     $average = $sets / $stats['uptime'];
   }
-  return t('!average/s; !set sets (!sets%) of !total commands', array('!average' => number_format($average, 2), '!sets' => number_format($sets, 2), '!set' => number_format($stats['cmd_set']), '!total' => number_format($stats['cmd_set'] + $stats['cmd_get'])));
+  return t('!average/s; !set sets (!sets%) of !total commands', [
+    '!average' => number_format($average, 2),
+    '!sets' => number_format($sets, 2),
+    '!set' => number_format($stats['cmd_set']),
+    '!total' => number_format($stats['cmd_set'] + $stats['cmd_get']),
+  ]);
 }
 
 /**
@@ -167,7 +175,15 @@ function _memcache_admin_stats_gets($stats) {
   else {
     $average = $stats['cmd_get'] / $stats['uptime'];
   }
-  return t('!average/s; !total gets (!gets%); !hit hits (!percent_hit%) !miss misses (!percent_miss%)', array('!average' => number_format($average, 2), '!gets' => number_format($gets, 2), '!hit' => number_format($stats['get_hits']), '!percent_hit' => ($stats['cmd_get'] > 0 ? number_format($stats['get_hits'] / $stats['cmd_get'] * 100, 2) : '0.00'), '!miss' => number_format($stats['get_misses']), '!percent_miss' => ($stats['cmd_get'] > 0 ? number_format($stats['get_misses'] / $stats['cmd_get'] * 100, 2) : '0.00'), '!total' => number_format($stats['cmd_get'])));
+  return t('!average/s; !total gets (!gets%); !hit hits (!percent_hit%) !miss misses (!percent_miss%)', [
+    '!average' => number_format($average, 2),
+    '!gets' => number_format($gets, 2),
+    '!hit' => number_format($stats['get_hits']),
+    '!percent_hit' => ($stats['cmd_get'] > 0 ? number_format($stats['get_hits'] / $stats['cmd_get'] * 100, 2) : '0.00'),
+    '!miss' => number_format($stats['get_misses']),
+    '!percent_miss' => ($stats['cmd_get'] > 0 ? number_format($stats['get_misses'] / $stats['cmd_get'] * 100, 2) : '0.00'),
+    '!total' => number_format($stats['cmd_get']),
+  ]);
 }
 
 /**
@@ -175,15 +191,18 @@ function _memcache_admin_stats_gets($stats) {
  */
 function _memcache_admin_stats_counters($stats) {
   if (!is_array($stats)) {
-    $stats = array();
+    $stats = [];
   }
-  $stats += array(
+  $stats += [
     'incr_hits' => 0,
     'incr_misses' => 0,
     'decr_hits' => 0,
     'decr_misses' => 0,
-  );
-  return t('!incr increments, !decr decrements', array('!incr' => number_format($stats['incr_hits'] + $stats['incr_misses']), '!decr' => number_format($stats['decr_hits'] + $stats['decr_misses'])));
+  ];
+  return t('!incr increments, !decr decrements', [
+    '!incr' => number_format($stats['incr_hits'] + $stats['incr_misses']),
+    '!decr' => number_format($stats['decr_hits'] + $stats['decr_misses']),
+  ]);
 }
 
 /**
@@ -196,7 +215,11 @@ function _memcache_admin_stats_transfer($stats) {
   else {
     $written = $stats['bytes_read'] / $stats['bytes_written'] * 100;
   }
-  return t('!to:!from (!written% to cache)', array('!to' => format_size((int) $stats['bytes_read']), '!from' => format_size((int) $stats['bytes_written']), '!written' => number_format($written, 2)));
+  return t('!to:!from (!written% to cache)', [
+    '!to' => format_size((int) $stats['bytes_read']),
+    '!from' => format_size((int) $stats['bytes_written']),
+    '!written' => number_format($written, 2),
+  ]);
 }
 
 /**
@@ -215,7 +238,12 @@ function _memcache_admin_stats_average($stats) {
     $read = $stats['bytes_written'] / $stats['total_connections'];
     $write = $stats['bytes_read'] / $stats['total_connections'];
   }
-  return t('!read in !get gets; !write in !set sets', array('!get' => number_format($get, 2), '!set' => number_format($set, 2), '!read' => format_size(number_format($read, 2)), '!write' => format_size(number_format($write, 2))));
+  return t('!read in !get gets; !write in !set sets', [
+    '!get' => number_format($get, 2),
+    '!set' => number_format($set, 2),
+    '!read' => format_size(number_format($read, 2)),
+    '!write' => format_size(number_format($write, 2)),
+  ]);
 }
 
 /**
@@ -228,14 +256,18 @@ function _memcache_admin_stats_memory($stats) {
   else {
     $percent = 100 - $stats['bytes'] / $stats['limit_maxbytes'] * 100;
   }
-  return t('!available (!percent%) of !total', array('!available' => format_size($stats['limit_maxbytes'] - $stats['bytes']), '!percent' => number_format($percent, 2), '!total' => format_size($stats['limit_maxbytes'])));
+  return t('!available (!percent%) of !total', [
+    '!available' => format_size($stats['limit_maxbytes'] - $stats['bytes']),
+    '!percent' => number_format($percent, 2),
+    '!total' => format_size($stats['limit_maxbytes']),
+  ]);
 }
 
 /**
  * Helper function, reverse map the memcache_bins variable.
  */
 function memcache_admin_bin_mapping($bin = 'cache') {
-  $bins = array_flip(settings_get('memcache_bins', array('cache' => 'default')));
+  $bins = array_flip(settings_get('memcache_bins', ['cache' => 'default']));
   if (isset($bins[$bin])) {
     return $bins[$bin];
   }
@@ -253,7 +285,10 @@ function memcache_admin_bin_mapping($bin = 'cache') {
  */
 function memcache_admin_stats($bin = 'default') {
   if (!class_exists('BackdropMemcache', FALSE)) {
-    return t('There is a problem with your memcache configuration. Please review !readme for help resolving the following issue: %error.', array('!readme' => l('README.md', 'http://cgit.drupalcode.org/memcache/tree/README.txt?id=refs/heads;id2=7.x-1.x'), '%error' => t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc')));
+    return t('There is a problem with your memcache configuration. Please review !readme for help resolving the following issue: %error.', [
+      '!readme' => l('README.md', 'http://cgit.drupalcode.org/memcache/tree/README.txt?id=refs/heads;id2=7.x-1.x'),
+      '%error' => t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc'),
+    ]);
   }
   if ($memcache_debug_log = settings_get('memcache_debug_log', FALSE)) {
     if (settings_get('memcache_debug_verbose', FALSE)) {
@@ -262,40 +297,50 @@ function memcache_admin_stats($bin = 'default') {
     else {
       $verbose = '';
     }
-    backdrop_set_message(t('You are writing !verbose debug logs to !debug_log.', array('!verbose' => $verbose, '!debug_log' => $memcache_debug_log)), 'warning');
+    backdrop_set_message(t('You are writing !verbose debug logs to !debug_log.', [
+      '!verbose' => $verbose,
+      '!debug_log' => $memcache_debug_log,
+    ]), 'warning');
   }
   $bin = memcache_admin_bin_mapping($bin);
   $output = '';
-  $server = array();
+  $server = [];
   $stats = dmemcache_stats($bin, 'default', TRUE);
   if (empty($stats[$bin])) {
     // Failed to load statistics. Provide a useful error about where to get
     // more information and help.
-    backdrop_set_message(t('Failed to retreive statistics. There may be a problem with your Memcache configuration. Please review %readme and !more for more information.', array('%readme' => 'README.md', 'admin/reports/status', '!more' => module_exists('memcache') ? t('visit the Backdrop admin !status page', array('!status' => l(t('status report'), 'admin/reports/status'))) : t('!enable the memcache module', array('!enable' => l(t('enable'), 'admin/modules', array('fragment' => 'edit-modules-performance-and-scalability')))))), 'error');
+    backdrop_set_message(t('Failed to retreive statistics. There may be a problem with your Memcache configuration. Please review %readme and !more for more information.', [
+      '%readme' => 'README.md',
+      'admin/reports/status',
+      '!more' => module_exists('memcache') ? t('visit the Backdrop admin !status page', ['!status' => l(t('status report'), 'admin/reports/status')]) : t('!enable the memcache module', ['!enable' => l(t('enable'), 'admin/modules', ['fragment' => 'edit-modules-performance-and-scalability'])]),
+    ]), 'error');
   }
   else {
     $stats = $stats[$bin];
     $aggregate = array_pop($stats);
     $mc = dmemcache_object($bin);
     if ($mc instanceof Memcached) {
-      $version = t('Memcached v!version', array('!version' => phpversion('Memcached')));
+      $version = t('Memcached v!version', ['!version' => phpversion('Memcached')]);
     }
     elseif ($mc instanceof Memcache) {
-      $version = t('Memcache v!version', array('!version' => phpversion('Memcache')));
+      $version = t('Memcache v!version', ['!version' => phpversion('Memcache')]);
     }
     else {
       $version = t('Unknown');
       backdrop_set_message(t('Failed to detect the memcache PECL extension.'), 'error');
     }
-    $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+    $memcache_servers = settings_get('memcache_servers', ['127.0.0.1:11211' => 'default']);
 
     foreach ($stats as $server => $statistics) {
       if (empty($statistics['uptime'])) {
-        backdrop_set_message(t('Failed to connect to server at %address.', array('%address' => $server)), 'error');
+        backdrop_set_message(t('Failed to connect to server at %address.', ['%address' => $server]), 'error');
       }
       else {
         $servers[] = $server;
-        $data['server_overview'][$server] = t('v!version running !uptime', array('!version' => check_plain($statistics['version']), '!uptime' => format_interval($statistics['uptime'])));
+        $data['server_overview'][$server] = t('v!version running !uptime', [
+          '!version' => check_plain($statistics['version']),
+          '!uptime' => format_interval($statistics['uptime']),
+        ]);
         $data['server_pecl'][$server] = t('n/a');
         $data['server_serialize'][$server] = t('n/a');
         $data['server_time'][$server] = format_date($statistics['time']);
@@ -312,84 +357,87 @@ function memcache_admin_stats($bin = 'default') {
 
     // Don't display aggregate totals if there's only one server.
     if (count($servers) == 1) {
-      $aggregate = array();
+      $aggregate = [];
     }
 
     // Build a custom report array.
-    $report = array();
+    $report = [];
 
     // Report server uptime.
-    $item = array(
+    $item = [
       'label' => t('Uptime'),
       'servers' => $data['server_overview'],
-    );
+    ];
     if (count($aggregate)) {
       $item['total'] = t('n/a');
     }
     $report['uptime'][] = $item;
 
     // Report server PECL extension.
-    $item = array(
+    $item = [
       'label' => t('PECL extension'),
-    );
+    ];
     if (count($aggregate)) {
       $item['servers'] = $data['server_pecl'];
       $item['total'] = $version;
     }
     else {
-      $item['servers'] = array($servers[0] => $version);
+      $item['servers'] = [$servers[0] => $version];
     }
     $report['uptime'][] = $item;
 
     // Report which serialize function is being used.
-    $item = array(
-      'label' => t('Serialize function')
-    );
+    $item = [
+      'label' => t('Serialize function'),
+    ];
     $serialize_function = dmemcache_serialize();
     if ($serialize_function != 'serialize') {
-      $serialize_function = t('!function v!version', array('!function' => $serialize_function, '!version' => phpversion(dmemcache_serialize_extension())));
+      $serialize_function = t('!function v!version', [
+        '!function' => $serialize_function,
+        '!version' => phpversion(dmemcache_serialize_extension()),
+      ]);
     }
     if (count($aggregate)) {
       $item['servers'] = $data['server_serialize'];
       $item['total'] = $serialize_function;
     }
     else {
-      $item['servers'] = array($servers[0] => $serialize_function);
+      $item['servers'] = [$servers[0] => $serialize_function];
     }
     $report['uptime'][] = $item;
 
     // Report server time.
-    $item = array(
+    $item = [
       'label' => t('Time'),
       'servers' => $data['server_time'],
-    );
+    ];
     if (count($aggregate)) {
       $item['total'] = t('n/a');
     }
     $report['uptime'][] = $item;
 
     // Report number of connections.
-    $item = array(
+    $item = [
       'label' => t('Connections'),
       'servers' => $data['server_connections'],
-    );
+    ];
     if (count($aggregate)) {
       $item['total'] = _memcache_admin_stats_connections($aggregate);
     }
     $report['uptime'][] = $item;
 
-    $stats = array(
+    $stats = [
       'sets' => t('Sets'),
       'gets' => t('Gets'),
       'counters' => t('Counters'),
       'transfer' => t('Transferred'),
       'average' => t('Per-connection average'),
-    );
+    ];
     foreach ($stats as $type => $label) {
-      $item = array(
+      $item = [
         'label' => $label,
         'servers' => $data["cache_{$type}"],
-      );
+      ];
       if (count($aggregate)) {
         $func = "_memcache_admin_stats_{$type}";
         $item['total'] = $func($aggregate);
@@ -398,29 +446,29 @@ function memcache_admin_stats($bin = 'default') {
     }
 
     // Report on available memory.
-    $item = array(
+    $item = [
       'label' => t('Available memory'),
       'servers' => $data['memory_available'],
-    );
+    ];
     if (count($aggregate)) {
       $item['total'] = _memcache_admin_stats_memory($aggregate);
     }
     $report['memory'][] = $item;
 
     // Report on memory evictions.
-    $item = array(
+    $item = [
       'label' => t('Evictions'),
       'servers' => $data['memory_evictions'],
-    );
+    ];
     if (count($aggregate)) {
       $item['total'] = number_format($aggregate['evictions']);
     }
     $report['memory'][] = $item;
-    $output = theme('memcache_admin_stats_table', array(
+    $output = theme('memcache_admin_stats_table', [
       'bin' => $bin,
       'servers' => $servers,
       'report' => $report,
-    ));
+    ]);
   }
   return $output;
 }
@@ -437,42 +485,42 @@ function memcache_admin_stats_raw($bin, $server, $type = 'default') {
   else {
     $stats = dmemcache_stats($cluster, $type, FALSE);
   }
-  $breadcrumbs = array(
+  $breadcrumbs = [
     l(t('Home'), NULL),
     l(t('Administer'), 'admin'),
     l(t('Reports'), 'admin/reports'),
     l(t('Memcache'), 'admin/reports/memcache'),
     l(t($bin), "admin/reports/memcache/$bin"),
-  );
+  ];
   if ($type == 'slabs' && arg(6) == 'cachedump' && user_access('access slab cachedump')) {
     $breadcrumbs[] = l($server, "admin/reports/memcache/$bin/$server");
     $breadcrumbs[] = l(t('slabs'), "admin/reports/memcache/$bin/$server/$type");
   }
   backdrop_set_breadcrumb($breadcrumbs);
   if (isset($stats[$cluster][$server]) && is_array($stats[$cluster][$server]) && count($stats[$cluster][$server])) {
-    $output = theme('memcache_admin_stats_raw_table', array(
+    $output = theme('memcache_admin_stats_raw_table', [
       'cluster' => $cluster,
       'server' => $server,
       'stats' => $stats[$cluster][$server],
       'type' => $type,
-    ));
+    ]);
   }
   elseif ($type == 'slabs' && is_array($stats[$cluster]) && count($stats[$cluster])) {
-    $output = theme('memcache_admin_stats_raw_table', array(
+    $output = theme('memcache_admin_stats_raw_table', [
       'cluster' => $cluster,
       'server' => $server,
       'stats' => $stats[$cluster],
       'type' => $type,
-    ));
+    ]);
   }
   else {
-    $output = theme('memcache_admin_stats_raw_table', array(
+    $output = theme('memcache_admin_stats_raw_table', [
       'cluster' => $cluster,
       'server' => $server,
-      'stats' => array(),
+      'stats' => [],
       'type' => $type,
-    ));
-    backdrop_set_message(t('No @type statistics for this bin.', array('@type' => $type)));
+    ]);
+    backdrop_set_message(t('No @type statistics for this bin.', ['@type' => $type]));
   }
   return $output;
 }
@@ -481,23 +529,23 @@ function memcache_admin_stats_raw($bin, $server, $type = 'default') {
  * Implements hook_theme().
  */
 function memcache_admin_theme() {
-  return array(
-    'memcache_admin_stats_table' => array(
-      'variables' => array(
+  return [
+    'memcache_admin_stats_table' => [
+      'variables' => [
         'bin' => NULL,
         'servers' => NULL,
         'report' => NULL,
-      ),
-    ),
-    'memcache_admin_stats_raw_table' => array(
-      'variables' => array(
+      ],
+    ],
+    'memcache_admin_stats_raw_table' => [
+      'variables' => [
         'bin' => NULL,
         'server' => NULL,
         'stats' => NULL,
         'type' => NULL,
-      ),
-    ),
-  );
+      ],
+    ],
+  ];
 }
 
 /**
@@ -510,24 +558,24 @@ function theme_memcache_admin_stats_table($variables) {
 
   $output = '';
 
-  $links = array();
-  $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
+  $links = [];
+  $memcache_bins = settings_get('memcache_bins', ['cache' => 'default']);
   foreach ($servers as $server) {
     $link_bin = $memcache_bins[$bin];
     $links[] = l($server, check_plain("admin/reports/memcache/$link_bin/$server"));
   }
 
   if (count($servers) > 1) {
-    $headers = array_merge(array('', t('Totals')), $links);
+    $headers = array_merge(['', t('Totals')], $links);
   }
   else {
-    $headers = array_merge(array(''), $links);
+    $headers = array_merge([''], $links);
   }
 
   foreach ($stats as $table => $data) {
-    $rows = array();
+    $rows = [];
     foreach ($data as $row) {
-      $r = array();
+      $r = [];
       $r[] = $row['label'];
       if (isset($row['total'])) {
         $r[] = $row['total'];
@@ -537,7 +585,7 @@ function theme_memcache_admin_stats_table($variables) {
       }
       $rows[] = $r;
     }
-    $output .= theme('table', array('header' => $headers, 'rows' => $rows));
+    $output .= theme('table', ['header' => $headers, 'rows' => $rows]);
   }
   return $output;
 }
@@ -553,15 +601,15 @@ function memcache_admin_stats_types($bin) {
       // these other stats types: 'malloc', 'maps', optionally detect this
       // version and expose them.  These stats are "subject to change without
       // warning" unfortunately.
-      return array('default', 'slabs', 'items', 'sizes');
+      return ['default', 'slabs', 'items', 'sizes'];
     }
     else {
       // The Memcached PECL extension only offers the default statistics.
-      return array('default');
+      return ['default'];
     }
   }
   else {
-    return array();
+    return [];
   }
 }
 
@@ -574,7 +622,7 @@ function theme_memcache_admin_stats_raw_table($variables) {
   $stats = $variables['stats'];
   $current_type = isset($variables['type']) ? $variables['type'] : 'default';
 
-  $memcache_bins = settings_get('memcache_bins', array());
+  $memcache_bins = settings_get('memcache_bins', []);
   $bin = isset($memcache_bins[$cluster]) ? $memcache_bins[$cluster] : 'default';
   // Provide navigation for the various memcache stats types.
   if (count(memcache_admin_stats_types($bin)) > 1) {
@@ -589,8 +637,8 @@ function theme_memcache_admin_stats_raw_table($variables) {
   }
   $output = !empty($links) ? implode(' | ', $links) : '';
 
-  $headers = array(t('Property'), t('Value'));
-  $rows = array();
+  $headers = [t('Property'), t('Value')];
+  $rows = [];
   // Items are returned as an array within an array within an array.  We step
   // in one level to properly display the contained statistics.
   if ($current_type == 'items' && isset($stats['items'])) {
@@ -602,7 +650,7 @@ function theme_memcache_admin_stats_raw_table($variables) {
       $key = l($key, "admin/reports/memcache/$bin/$server/slabs/cachedump/$key");
     }
     if (is_array($value)) {
-      $rs = array();
+      $rs = [];
       foreach ($value as $k => $v) {
         // Format timestamp when viewing cachedump of individual slabs.
         if ($current_type == 'slabs' && user_access('access slab cachedump') && arg(6) == 'cachedump' && $k == 0) {
@@ -617,18 +665,18 @@ function theme_memcache_admin_stats_raw_table($variables) {
             $v = t('infinite');
           }
           else {
-            $v = t('in @time', array('@time' => format_interval($v - time())));
+            $v = t('in @time', ['@time' => format_interval($v - time())]);
           }
         }
-        $rs[] = array(check_plain($k), check_plain($v));
+        $rs[] = [check_plain($k), check_plain($v)];
       }
-      $rows[] = array($key, theme('table', array('rows' => $rs)));
+      $rows[] = [$key, theme('table', ['rows' => $rs])];
     }
     else {
-      $rows[] = array(check_plain($key), check_plain($value));
+      $rows[] = [check_plain($key), check_plain($value)];
     }
   }
-  $output .= theme('table', array('header' => $headers, 'rows' => $rows));
+  $output .= theme('table', ['header' => $headers, 'rows' => $rows]);
   return $output;
 }
 
@@ -642,10 +690,10 @@ function theme_memcache_admin_stats_raw_table($variables) {
  *   The name of the bin.
  */
 function _memcache_admin_get_bin_for_cluster($cluster) {
-  static $cluster_map = array();
+  static $cluster_map = [];
 
   if (!isset($cluster_map[$cluster])) {
-    $memcache_bins = settings_get('memcache_bins', array());
+    $memcache_bins = settings_get('memcache_bins', []);
     if ($mapping = array_search($cluster, $memcache_bins)) {
       $cluster_map[$cluster] = $mapping;
     }
@@ -704,15 +752,15 @@ function memcache_admin_exit() {
         $_dmemcache_stats['ops'][$row][2] = number_format($stats[2]) . " ($hits%)";
         $_dmemcache_stats['ops'][$row][3] = number_format($stats[3]) . " ($misses%)";
       }
-      $variables = array(
-        'header' => array(
+      $variables = [
+        'header' => [
           t('operation'),
           t('total ms'),
           t('total hits'),
           t('total misses'),
-        ),
+        ],
         'rows' => $_dmemcache_stats['ops'],
-      );
+      ];
       $output .= theme('table', $variables);
     }
     if (!empty($_dmemcache_stats['all'])) {
@@ -722,23 +770,23 @@ function memcache_admin_exit() {
         $_dmemcache_stats['all'][$row][3] = check_plain($stats[3]);
       }
 
-      $variables = array(
-        'header' => array(
+      $variables = [
+        'header' => [
           t('ms'),
           t('operation'),
           t('bin'),
           t('key'),
           t('status'),
-        ),
+        ],
         'rows' => $_dmemcache_stats['all'],
-      );
+      ];
       $output .= theme('table', $variables);
 
     }
     if (!empty($output)) {
       // This makes sure all of the HTML is within the <body> even though this
       // <script> is outside it.
-      print '<div id="memcache-devel"><h2>' . t('Memcache statistics for @url', array('@url' => current_path())) . '</h2>' . $output . '</div>';
+      print '<div id="memcache-devel"><h2>' . t('Memcache statistics for @url', ['@url' => current_path()]) . '</h2>' . $output . '</div>';
     }
   }
 }

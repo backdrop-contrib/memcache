@@ -15,6 +15,7 @@ const MEMCACHE_WILDCARD_INVALIDATE = 2419200;
  * Implementation of cache.inc with memcache logic included
  */
 class BackdropMemcache implements BackdropCacheInterface {
+
   /**
    * @var Memcache|Memcached The raw PECL memcache(d) object for this bin.
    */
@@ -656,4 +657,5 @@ class BackdropMemcache implements BackdropCacheInterface {
       dmemcache_set($state_setting_name, $value, 0, 'bootstrap');
     }
   }
+
 }

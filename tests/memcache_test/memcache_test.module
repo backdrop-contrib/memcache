@@ -4,65 +4,65 @@
  * Implements hook_menu().
  */
 function memcache_test_menu() {
-  $items['memcache-test/lock-acquire'] = array(
+  $items['memcache-test/lock-acquire'] = [
     'title' => 'Lock acquire',
     'page callback' => 'memcache_test_lock_acquire',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/lock-exit'] = array(
+  $items['memcache-test/lock-exit'] = [
     'title' => 'Lock acquire then exit',
     'page callback' => 'memcache_test_lock_exit',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/set/%/%'] = array(
+  $items['memcache-test/set/%/%'] = [
     'title' => 'Set a value with a key',
     'page callback' => 'memcache_test_set',
-    'page arguments' => array(2, 3),
+    'page arguments' => [2, 3],
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/get/%'] = array(
+  $items['memcache-test/get/%'] = [
     'title' => 'Get a value from the cache',
     'page callback' => 'memcache_test_get',
-    'page arguments' => array(2),
+    'page arguments' => [2],
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/delete-prefix/%'] = array(
+  $items['memcache-test/delete-prefix/%'] = [
     'title' => 'Clear multiple items with a cache prefix',
     'page callback' => 'memcache_test_delete_prefix',
-    'page arguments' => array(2),
+    'page arguments' => [2],
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/delete/%'] = array(
+  $items['memcache-test/delete/%'] = [
     'title' => 'Delete a single cache entry',
     'page callback' => 'memcache_test_delete',
-    'page arguments' => array(2),
+    'page arguments' => [2],
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/garbage-collection'] = array(
+  $items['memcache-test/garbage-collection'] = [
     'title' => 'Run cache garbage collection and invalidate temporary items',
     'page callback' => 'memcache_test_garbage_collection',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
-  $items['memcache-test/flush'] = array(
+  $items['memcache-test/flush'] = [
     'title' => 'Run a full cache flush',
     'page callback' => 'memcache_test_flush',
     'access callback' => TRUE,
     'type' => MENU_CALLBACK,
-  );
+  ];
 
   return $items;
 }
@@ -126,8 +126,8 @@ function memcache_test_delete($key) {
 }
 
 /**
-* Run cache garbage collection and invalidate temporary items.
-*/
+ * Run cache garbage collection and invalidate temporary items.
+ */
 function memcache_test_garbage_collection() {
   cache('memcache_test_bin')->garbageCollection();
   backdrop_json_output();

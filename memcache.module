@@ -12,9 +12,9 @@
  * Implements hook_autoload_info().
  */
 function memcache_autoload_info() {
-  return array(
+  return [
     // Probably unnecessary in most situations, but if the memcache class is
     // utilized outside being a configured cache class, this auto-loads it.
     'BackdropMemcache' => 'memcache.inc',
-  );
+  ];
 }

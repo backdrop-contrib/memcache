@@ -17,7 +17,7 @@ define('BACKDROP_MEMCACHE_ASCII_AUTH_KEY', 'backdrop:memcache:ascii:auth:key');
 define('BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY', 'backdrop:memcache:ascii:auth:lifetime:key');
 
 global $_dmemcache_stats;
-$_dmemcache_stats = array('all' => array(), 'ops' => array());
+$_dmemcache_stats = ['all' => [], 'ops' => []];
 
 /**
  * Place an item into memcache.
@@ -84,7 +84,7 @@ function dmemcache_set($key, $value, $exp = 0, $bin = 'cache', $mc = NULL) {
   }
 
   if ($collect_stats) {
-    dmemcache_stats_write('set', $bin, array($full_key => $rc));
+    dmemcache_stats_write('set', $bin, [$full_key => $rc]);
   }
 
   _dmemcache_write_debug('set', $bin, $full_key, $rc);
@@ -144,8 +144,8 @@ function _dmemcache_set_pieces($key, $value, $exp = 0, $bin = 'cache', $mc = NUL
   if (!dmemcache_piece_cache_set($full_key, $exp)) {
     // We're caching a LOT of large items. Our piece_cache has exceeded the
     // maximum memcache object size (default of 1 MiB).
-    $piece_cache = &backdrop_static('dmemcache_piece_cache', array());
-    register_shutdown_function('watchdog', 'memcache', 'Too many over-sized cache items (!count) has caused the dmemcache_piece_cache to exceed the maximum memcache object size (default of 1 MiB). Now relying on memcache auto-expiration to eventually clean up over-sized cache pieces upon deletion.', array('!count' => count($piece_cache)), WATCHDOG_ERROR);
+    $piece_cache = &backdrop_static('dmemcache_piece_cache', []);
+    register_shutdown_function('watchdog', 'memcache', 'Too many over-sized cache items (!count) has caused the dmemcache_piece_cache to exceed the maximum memcache object size (default of 1 MiB). Now relying on memcache auto-expiration to eventually clean up over-sized cache pieces upon deletion.', ['!count' => count($piece_cache)], WATCHDOG_ERROR);
   }
 
   if (settings_get('memcache_log_data_pieces', 2)) {
@@ -200,7 +200,12 @@ function _dmemcache_set_pieces($key, $value, $exp = 0, $bin = 'cache', $mc = NUL
     else {
       $data_size = number_format(strlen($data)) . ' byte';
     }
-    register_shutdown_function('watchdog', 'memcache', 'Spent !time ms splitting !bytes object into !pieces pieces, cid = !key', array('!time' => timer_read('memcache_split_data'), '!bytes' => $data_size, '!pieces' => $piece_count, '!key' => dmemcache_key($key, $bin)), WATCHDOG_WARNING);
+    register_shutdown_function('watchdog', 'memcache', 'Spent !time ms splitting !bytes object into !pieces pieces, cid = !key', [
+      '!time' => timer_read('memcache_split_data'),
+      '!bytes' => $data_size,
+      '!pieces' => $piece_count,
+      '!key' => dmemcache_key($key, $bin),
+    ], WATCHDOG_WARNING);
   }
 
   $recursion--;
@@ -255,7 +260,7 @@ function dmemcache_add($key, $value, $exp = 0, $bin = 'cache', $mc = NULL, $flag
   }
 
   if ($collect_stats) {
-    dmemcache_stats_write('add', $bin, array($full_key => $rc));
+    dmemcache_stats_write('add', $bin, [$full_key => $rc]);
   }
 
   _dmemcache_write_debug('add', $bin, $full_key, $rc);
@@ -306,14 +311,14 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
     }
 
     if (!empty($php_errormsg)) {
-      register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get: !msg', array('!msg' => $php_errormsg), WATCHDOG_WARNING);
+      register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get: !msg', ['!msg' => $php_errormsg], WATCHDOG_WARNING);
       $php_errormsg = '';
     }
     ini_set('track_errors', $track_errors);
   }
 
   if ($collect_stats) {
-    dmemcache_stats_write('get', $bin, array($full_key => (bool) $result));
+    dmemcache_stats_write('get', $bin, [$full_key => (bool) $result]);
   }
 
   _dmemcache_write_debug('get', $bin, $full_key, (bool) $result);
@@ -378,7 +383,7 @@ function _dmemcache_get_pieces($item, $key, $bin = 'cache', $mc = NULL) {
  * @return string
  */
 function _dmemcache_key_piece($key, $id) {
-  return dmemcache_key('_multi'. (string)$id . "-$key");
+  return dmemcache_key('_multi' . (string) $id . "-$key");
 }
 
 /**
@@ -397,9 +402,9 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
   static $memcache_ascii_auth = NULL;
 
   $collect_stats = dmemcache_stats_init();
-  $multi_stats = array();
+  $multi_stats = [];
 
-  $full_keys = array();
+  $full_keys = [];
 
   foreach ($keys as $key => $cid) {
     $full_key = dmemcache_key($cid, $bin);
@@ -410,7 +415,7 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
     }
   }
 
-  $results = array();
+  $results = [];
   if ($mc || ($mc = dmemcache_object($bin))) {
     if ($mc instanceof Memcached) {
       if (PHP_MAJOR_VERSION >= 7) {
@@ -424,7 +429,7 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
 
       // If $results is FALSE, convert it to an empty array.
       if (!$results) {
-        $results = array();
+        $results = [];
       }
 
       if (!isset($memcache_ascii_auth)) {
@@ -450,7 +455,7 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
       $results = @$mc->get($full_keys);
 
       if (!empty($php_errormsg)) {
-        register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get_multi: !msg', array('!msg' => $php_errormsg), WATCHDOG_WARNING);
+        register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get_multi: !msg', ['!msg' => $php_errormsg], WATCHDOG_WARNING);
         $php_errormsg = '';
       }
       ini_set('track_errors', $track_errors);
@@ -465,7 +470,7 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
 
   // If $results is FALSE, convert it to an empty array.
   if (!$results) {
-    $results = array();
+    $results = [];
     $keys = array_fill_keys($full_keys, NULL);
     $results = array_merge($keys, $results);
     _dmemcache_write_debug('getMulti', $bin, implode(',', $full_keys), FALSE);
@@ -478,7 +483,7 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
   }
 
   // Convert the full keys back to the cid.
-  $cid_results = array();
+  $cid_results = [];
   $cid_lookup = array_flip($full_keys);
   foreach ($results as $key => $value) {
     // This is a multi-part value.
@@ -552,7 +557,7 @@ function dmemcache_delete($key, $bin = 'cache', $mc = NULL) {
           // enable the memcache module.
           timer_start('memcache_gc_piece_cache');
           $gc_counter = 0;
-          $piece_cache = &backdrop_static('dmemcache_piece_cache', array());
+          $piece_cache = &backdrop_static('dmemcache_piece_cache', []);
           foreach ($piece_cache as $cid => $expires) {
             if (REQUEST_TIME > $expires) {
               $gc_counter++;
@@ -560,12 +565,15 @@ function dmemcache_delete($key, $bin = 'cache', $mc = NULL) {
             }
           }
           if ($gc_counter) {
-            register_shutdown_function('watchdog', 'memcache', 'Spent !time ms in garbage collection cleaning !count stale keys from the dmemcache_piece_cache.', array('!time' => timer_read('memcache_gc_piece_cache'), '!count' => $gc_counter), WATCHDOG_WARNING);
+            register_shutdown_function('watchdog', 'memcache', 'Spent !time ms in garbage collection cleaning !count stale keys from the dmemcache_piece_cache.', [
+              '!time' => timer_read('memcache_gc_piece_cache'),
+              '!count' => $gc_counter,
+            ], WATCHDOG_WARNING);
           }
         }
       }
       if ($collect_stats) {
-        dmemcache_stats_write('delete', $bin, array($fk => $rc));
+        dmemcache_stats_write('delete', $bin, [$fk => $rc]);
       }
       _dmemcache_write_debug('delete', $bin, $fk, $rc);
     }
@@ -602,7 +610,7 @@ function dmemcache_flush($bin = 'cache', $mc = NULL) {
   }
 
   if ($collect_stats) {
-    dmemcache_stats_write('flush', $bin, array('' => $rc));
+    dmemcache_stats_write('flush', $bin, ['' => $rc]);
   }
 
   _dmemcache_write_debug('flush', $bin, '', $rc);
@@ -624,11 +632,11 @@ function dmemcache_flush($bin = 'cache', $mc = NULL) {
  *   The statistics
  */
 function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggregate = FALSE) {
-  $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
+  $memcache_bins = settings_get('memcache_bins', ['cache' => 'default']);
   // The stats_type can be over-loaded with an integer slab id, if doing a
   // cachedump.  We know we're doing a cachedump if $slab is non-zero.
   $slab = (int) $stats_type;
-  $stats = array();
+  $stats = [];
 
   foreach ($memcache_bins as $bin => $target) {
     if ($stats_bin == $bin) {
@@ -813,15 +821,15 @@ function dmemcache_instance($bin = 'cache') {
     else {
       $memcache = new Memcached;
     }
-    $default_opts = array(
+    $default_opts = [
       Memcached::OPT_DISTRIBUTION => Memcached::DISTRIBUTION_CONSISTENT,
-    );
+    ];
     foreach ($default_opts as $key => $value) {
       $memcache->setOption($key, $value);
     }
     // See README.md for setting custom Memcache options when using the
     // memcached PECL extension.
-    $memconf = settings_get('memcache_options', array());
+    $memconf = settings_get('memcache_options', []);
     foreach ($memconf as $key => $value) {
       $memcache->setOption($key, $value);
     }
@@ -832,7 +840,7 @@ function dmemcache_instance($bin = 'cache') {
   }
   else {
     if (!$error) {
-      register_shutdown_function('watchdog', 'memcache', 'You must enable the PHP <a href="http://php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="http://php.net/manual/en/book.memcached.php">memcached</a> extension to use memcache.inc.', array(), WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'You must enable the PHP <a href="http://php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="http://php.net/manual/en/book.memcached.php">memcached</a> extension to use memcache.inc.', [], WATCHDOG_ERROR);
       $error = TRUE;
     }
   }
@@ -861,7 +869,12 @@ function dmemcache_connect($memcache, $server, $weight) {
 
   @list($host, $port) = explode(':', trim($server));
   if (empty($host)) {
-    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php. Please review README.md for proper configuration.', array('!server' => $server, '!ip' => t('127.0.0.1:11211'), '!host' => t('localhost:11211'), '!socket' => t('unix:///path/to/socket')), WATCHDOG_WARNING);
+    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php. Please review README.md for proper configuration.', [
+      '!server' => $server,
+      '!ip' => t('127.0.0.1:11211'),
+      '!host' => t('localhost:11211'),
+      '!socket' => t('unix:///path/to/socket'),
+    ], WATCHDOG_WARNING);
   }
 
   if (!isset($memcache_persistent)) {
@@ -890,13 +903,20 @@ function dmemcache_connect($memcache, $server, $weight) {
       $host = substr($server, 7);
       $port = 0;
     }
-    else if (!isset($port)) {
-      $port_error = TRUE;
+    else {
+      if (!isset($port)) {
+        $port_error = TRUE;
+      }
     }
   }
 
   if ($port_error) {
-    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php which does not include a port. Please review README.md for proper configuration. You must specify both a server address and port such as "!ip" or "!host", or a unix socket such as "!socket".', array('!server' => $server, '!ip' => t('127.0.0.1:11211'), '!host' => t('localhost:11211'), '!socket' => t('unix:///path/to/socket')), WATCHDOG_WARNING);
+    register_shutdown_function('watchdog', 'memcache', 'You have specified an invalid address of "!server" in settings.php which does not include a port. Please review README.md for proper configuration. You must specify both a server address and port such as "!ip" or "!host", or a unix socket such as "!socket".', [
+      '!server' => $server,
+      '!ip' => t('127.0.0.1:11211'),
+      '!host' => t('localhost:11211'),
+      '!socket' => t('unix:///path/to/socket'),
+    ], WATCHDOG_WARNING);
   }
 
   if ($extension == 'Memcache') {
@@ -965,23 +985,23 @@ function dmemcache_close($memcache) {
  *   A Memcache object, or FALSE on failure.
  */
 function dmemcache_object($bin = NULL, $reset = FALSE) {
-  static $memcache_cache = array();
-  static $memcache_servers = array();
-  static $memcache_bins = array();
-  static $failed_connections = array();
+  static $memcache_cache = [];
+  static $memcache_servers = [];
+  static $memcache_bins = [];
+  static $failed_connections = [];
 
   if ($reset) {
-    $memcache_cache = array();
-    $memcache_servers = array();
-    $memcache_bins = array();
-    $failed_connections = array();
+    $memcache_cache = [];
+    $memcache_servers = [];
+    $memcache_bins = [];
+    $failed_connections = [];
   }
 
   if (empty($memcache_cache) || empty($memcache_cache[$bin])) {
     if (empty($memcache_servers)) {
       // Load the variables from settings.php if set.
-      $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
-      $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
+      $memcache_servers = settings_get('memcache_servers', ['127.0.0.1:11211' => 'default']);
+      $memcache_bins = settings_get('memcache_bins', ['cache' => 'default']);
     }
 
     // If not manually set, default this cluster to 'default'.
@@ -1012,7 +1032,7 @@ function dmemcache_object($bin = NULL, $reset = FALSE) {
               // because we're in an early Backdrop bootstrap phase where watchdog
               // is non-functional. Instead, register a shutdown handler so it
               // gets recorded at the end of the page load.
-              register_shutdown_function('watchdog', 'memcache', 'Failed to connect to memcache server: !server', array('!server' => $server), WATCHDOG_ERROR);
+              register_shutdown_function('watchdog', 'memcache', 'Failed to connect to memcache server: !server', ['!server' => $server], WATCHDOG_ERROR);
               $failed_connections[$server] = FALSE;
             }
           }
@@ -1043,14 +1063,14 @@ function dmemcache_object($bin = NULL, $reset = FALSE) {
 function dmemcache_object_cluster($cluster) {
   if (!is_array($cluster)) {
     // Set defaults.
-    $cluster = array(
+    $cluster = [
       'cluster' => $cluster,
       'weight' => 1,
-    );
+    ];
   }
   if (!isset($cluster['cluster']) || !is_string($cluster['cluster'])) {
     // Cluster is required, complain if it's missing or invalid.
-    register_shutdown_function('watchdog', 'memcache', 'Ignoring invalid or missing cluster definition, review your memcache_servers configuration.', array(), WATCHDOG_ERROR);
+    register_shutdown_function('watchdog', 'memcache', 'Ignoring invalid or missing cluster definition, review your memcache_servers configuration.', [], WATCHDOG_ERROR);
     return FALSE;
   }
   if (!isset($cluster['weight']) || !is_int($cluster['weight']) || $cluster['weight'] < 1) {
@@ -1086,7 +1106,7 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
         if (is_array($prefixes[$bin])) {
           // Optionally return key with all prefixes.
           if ($multiple) {
-            $prefix = array();
+            $prefix = [];
             foreach ($prefixes[$bin] as $pre) {
               $prefix[] = $pre . '-';
             }
@@ -1104,9 +1124,9 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
   }
 
   if (!is_array($prefix)) {
-    $prefix = array($prefix);
+    $prefix = [$prefix];
   }
-  $full_keys = array();
+  $full_keys = [];
   foreach ($prefix as $p) {
     // When simpletest is running, emulate the simpletest database prefix here
     // to avoid the child site setting cache entries in the parent site.
@@ -1161,10 +1181,10 @@ function dmemcache_key($key, $bin = 'cache', $multiple = FALSE) {
  */
 function dmemcache_piece_cache_set($cid, $exp = NULL) {
   // Always refresh cached copy to minimize multi-thread race window.
-  $piece_cache = &backdrop_static('dmemcache_piece_cache', array());
+  $piece_cache = &backdrop_static('dmemcache_piece_cache', []);
   $piece_cache = dmemcache_get('__dmemcache_piece_cache');
   if (!is_array($piece_cache)) {
-    $piece_cache = array();
+    $piece_cache = [];
   }
 
   if (isset($exp)) {
@@ -1203,7 +1223,7 @@ function dmemcache_piece_cache_get($name) {
     // On a website with no over-sized cache pieces, initialize the variable so
     // we never load it more than once per page versus once per DELETE.
     if (!is_array($piece_cache)) {
-      dmemcache_set('__dmemcache_piece_cache', array());
+      dmemcache_set('__dmemcache_piece_cache', []);
     }
   }
 
@@ -1229,10 +1249,13 @@ function dmemcache_stats_init() {
   static $backdrop_static_fast;
 
   if (!isset($backdrop_static_fast)) {
-    $backdrop_static_fast = &backdrop_static(__FUNCTION__, array('variable_checked' => NULL, 'user_access_checked' => NULL));
+    $backdrop_static_fast = &backdrop_static(__FUNCTION__, [
+      'variable_checked' => NULL,
+      'user_access_checked' => NULL,
+    ]);
   }
   $variable_checked = &$backdrop_static_fast['variable_checked'];
-  $user_access_checked  = &$backdrop_static_fast['user_access_checked'];
+  $user_access_checked = &$backdrop_static_fast['user_access_checked'];
 
   // Confirm BACKDROP_BOOTSTRAP_CONFIG has been reached.
   if (!isset($variable_checked) && function_exists('config_get')) {
@@ -1271,15 +1294,15 @@ function dmemcache_stats_write($action, $bin, $keys) {
   $time = timer_read('dmemcache');
   // Build the 'all' and 'ops' arrays displayed by memcache_admin.module.
   foreach ($keys as $key => $success) {
-    $_dmemcache_stats['all'][] = array(
+    $_dmemcache_stats['all'][] = [
       number_format($time, 2),
       $action,
       $bin,
       $key,
       $success ? 'hit' : 'miss',
-    );
+    ];
     if (!isset($_dmemcache_stats['ops'][$action])) {
-      $_dmemcache_stats['ops'][$action] = array($action, 0, 0, 0);
+      $_dmemcache_stats['ops'][$action] = [$action, 0, 0, 0];
     }
     $_dmemcache_stats['ops'][$action][1] += $time;
     if ($success) {
@@ -1315,10 +1338,19 @@ function _dmemcache_write_debug($action, $bin, $key, $rc) {
     return;
   }
   elseif ($memcache_debug_log) {
-    $debug_log = strtr(settings_get('memcache_debug_log_format', "!timestamp|!action|!bin|!cid|!rc\n"), array('!timestamp' => date(settings_get('memcache_debug_time_format', 'U')), '!action' => $action, '!bin' => $bin, '!cid' => $key, '!rc' => (int) $rc));
+    $debug_log = strtr(settings_get('memcache_debug_log_format', "!timestamp|!action|!bin|!cid|!rc\n"), [
+      '!timestamp' => date(settings_get('memcache_debug_time_format', 'U')),
+      '!action' => $action,
+      '!bin' => $bin,
+      '!cid' => $key,
+      '!rc' => (int) $rc,
+    ]);
     if (file_put_contents($memcache_debug_log, $debug_log, FILE_APPEND) === FALSE) {
       // This can lead to a lot of watchdog entries...
-      register_shutdown_function('watchdog', 'memcache', 'Unable to write to debug log at !debug_file: !debug_log.', array('!debug_file' => $memcache_debug_log, '!debug_log' => $debug_log), WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'Unable to write to debug log at !debug_file: !debug_log.', [
+        '!debug_file' => $memcache_debug_log,
+        '!debug_log' => $debug_log,
+      ], WATCHDOG_ERROR);
     }
   }
 }
@@ -1363,12 +1395,12 @@ function _dmemcache_ensure_ascii_auth($full_key, $mc) {
     $t = explode(' ', $memcache_ascii_auth_token);
     $s = $mc->getServerByKey($full_key);
 
-    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication failed to login with user %user to server: %server; error code: %code with message %message', array(
+    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication failed to login with user %user to server: %server; error code: %code with message %message', [
       '%server' => $s['host'] . ':' . $s['port'],
       '%user' => $t[0],
       '%code' => $code,
       '%message' => $message,
-    ), WATCHDOG_ERROR);
+    ], WATCHDOG_ERROR);
 
     return FALSE;
   }
@@ -1420,7 +1452,7 @@ function _dmemcache_ascii_authenticate_server($host, $port, $mc) {
 
   // This should never happen.
   if ($key == 1000) {
-    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication could not find the server to authenticate to.', array(), WATCHDOG_ERROR);
+    register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication could not find the server to authenticate to.', [], WATCHDOG_ERROR);
     return FALSE;
   }
 
@@ -1428,7 +1460,8 @@ function _dmemcache_ascii_authenticate_server($host, $port, $mc) {
 }
 
 /**
- * Checks if cache items are really missing or only missing ascii authentication.
+ * Checks if cache items are really missing or only missing ascii
+ * authentication.
  *
  * This is essentially a cache miss and hence we would be going into a heavy
  * code path anyway, therefore it is performance wise okay to check a special
@@ -1442,7 +1475,8 @@ function _dmemcache_ascii_authenticate_server($host, $port, $mc) {
  * cache miss.
  *
  * This is justified by the case that most likely memcache was just restarted
- * (else the lifetime key would not be missing) and hence the real cache request
+ * (else the lifetime key would not be missing) and hence the real cache
+ * request
  * likely would have been a real cache miss anyway.
  *
  * @param array $results
@@ -1452,7 +1486,7 @@ function _dmemcache_ascii_authenticate_server($host, $port, $mc) {
  */
 function _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc) {
   // Cache misses are very costly: Find out, if any servers need authentication.
-  $servers = array();
+  $servers = [];
   foreach ($results as $full_key => $value) {
     if (!empty($value)) {
       continue;
@@ -1464,10 +1498,10 @@ function _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc) {
   }
 
   if (empty($servers)) {
-    return array();
+    return [];
   }
 
-  $try_again_full_keys = array();
+  $try_again_full_keys = [];
   foreach ($servers as $server_key => $full_keys) {
     // Use the first key of the list as all keys map to this server.
     $full_key = current($full_keys);
@@ -1485,12 +1519,12 @@ function _dmemcache_get_multi_2nd_chance_ascii_auth($results, $mc) {
 
   // In case no authentication succeeded, there will be no keys to get.
   if (empty($try_again_full_keys)) {
-    return array();
+    return [];
   }
 
   $new_results = $mc->getMulti($try_again_full_keys);
   if (empty($new_results)) {
-    return array();
+    return [];
   }
 
   return $new_results;
@@ -1542,7 +1576,7 @@ function _dmemcache_use_ascii_auth() {
     $extension = dmemcache_extension();
 
     if ($memcache_ascii_auth && $extension == 'Memcache') {
-      register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication can only be used with Memcached extension', array(), WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'Memcache ascii authentication can only be used with Memcached extension', [], WATCHDOG_ERROR);
       $memcache_ascii_auth = FALSE;
     }
   }

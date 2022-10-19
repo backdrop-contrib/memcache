@@ -51,7 +51,7 @@ function memcache_enable() {
       }
     }
     // Make a test connection to all configured memcache servers.
-    $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+    $memcache_servers = settings_get('memcache_servers', ['127.0.0.1:11211' => 'default']);
     foreach ($memcache_servers as $server => $bin) {
       if ($cluster = dmemcache_object_cluster($bin)) {
         $memcache = dmemcache_instance($cluster['cluster']);
@@ -75,7 +75,10 @@ function memcache_enable() {
   }
 
   if ($error || $warning) {
-    backdrop_set_message(t('There are problems with your Memcache configuration. Please review %readme and visit the Backdrop admin !status page for more information.', array('%readme' => 'README.md', '!status' => l(t('status report'), 'admin/reports/status'))), $severity);
+    backdrop_set_message(t('There are problems with your Memcache configuration. Please review %readme and visit the Backdrop admin !status page for more information.', [
+      '%readme' => 'README.md',
+      '!status' => l(t('status report'), 'admin/reports/status'),
+    ]), $severity);
   }
 
 }
@@ -84,7 +87,7 @@ function memcache_enable() {
  * Implements hook_requirements().
  */
 function memcache_requirements($phase) {
-  $requirements = array();
+  $requirements = [];
   $t = get_t();
   $memcache = extension_loaded('memcache');
   $memcached = extension_loaded('memcached');
@@ -96,12 +99,12 @@ function memcache_requirements($phase) {
       $requirements['memcache_extension']['value'] = $t('Required PHP extension not found. Install the <a href="https://www.php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="https://www.php.net/manual/en/book.memcached.php">memcached</a> extension.');
     }
     else {
-      $requirements['memcache_extension']['value'] = $t('PHP %extension Extension', array('%extension' => $memcache ? $t('Memcache') : $t('Memcached')));
+      $requirements['memcache_extension']['value'] = $t('PHP %extension Extension', ['%extension' => $memcache ? $t('Memcache') : $t('Memcached')]);
     }
   }
   if ($phase == 'runtime') {
-    $errors = array();
-    $warnings = array();
+    $errors = [];
+    $warnings = [];
 
     if (!$memcache && !$memcached) {
       $errors[] = $t('Required PHP extension not found. Install the <a href="https://www.php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="https://www.php.net/manual/en/book.memcached.php">memcached</a> extension.');
@@ -109,7 +112,7 @@ function memcache_requirements($phase) {
 
     if (!function_exists('dmemcache_set')) {
       // dmemcache.inc isn't loaded.
-      $errors[] = $t('Failed to load required file %dmemcache.', array('%dmemcache' => backdrop_get_path('module', 'memcache') . '/' . 'dmemcache.inc'));
+      $errors[] = $t('Failed to load required file %dmemcache.', ['%dmemcache' => backdrop_get_path('module', 'memcache') . '/' . 'dmemcache.inc']);
       $requirements['memcache_extension']['value'] = $t('Unknown');
     }
     else {
@@ -134,11 +137,11 @@ function memcache_requirements($phase) {
       $requirements['memcache_extension']['value'] = $version . _memcache_statistics_link();
 
       if (!_memcache_pecl_version_valid()) {
-        $warnings[] = $t('PECL !extension version %version is unsupported. Please update to %recommended or newer.', array(
+        $warnings[] = $t('PECL !extension version %version is unsupported. Please update to %recommended or newer.', [
           '!extension' => $extension,
           '%version' => $version,
           '%recommended' => $recommended,
-        ));
+        ]);
       }
 
       // If ASCII protocol authentication is enabled, perform extra tests.
@@ -147,25 +150,25 @@ function memcache_requirements($phase) {
         $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_MINIMUM);
         // TRUE means version valid, FALSE means we failed to connect and will throw a different error.
         if ($version !== TRUE && $version !== FALSE) {
-          $errors[] = $t('ASCII protocol authentication is enabled but requires memcached v%minimum or greater. One or more memcached instances detected running memcache v%version.' . _memcache_statistics_link(), array(
+          $errors[] = $t('ASCII protocol authentication is enabled but requires memcached v%minimum or greater. One or more memcached instances detected running memcache v%version.' . _memcache_statistics_link(), [
             '%version' => $version,
             '%minimum' => MEMCACHED_ASCII_AUTH_MINIMUM,
-          ));
+          ]);
         }
         else {
           $version = _memcached_ascii_auth_version_valid(MEMCACHED_ASCII_AUTH_RECOMMENDED);
           // TRUE means a valid version, FALSE means we failed to connect and
           // will throw a different error.
           if ($version !== TRUE && $version !== FALSE) {
-            $warnings[] = $t('Memcached version %recommended or newer is recommended when using ASCII protocol authentication, to avoid a CPU race. One or more memcached instances detected are running memcache v%version.' . _memcache_statistics_link(), array(
+            $warnings[] = $t('Memcached version %recommended or newer is recommended when using ASCII protocol authentication, to avoid a CPU race. One or more memcached instances detected are running memcache v%version.' . _memcache_statistics_link(), [
               '%version' => $version,
               '%recommended' => MEMCACHED_ASCII_AUTH_RECOMMENDED,
-            ));
+            ]);
           }
         }
 
         // Confirm ASCII authentication works on all memcached servers.
-        $memcache_bins = settings_get('memcache_bins', array('cache' => 'default'));
+        $memcache_bins = settings_get('memcache_bins', ['cache' => 'default']);
         foreach ($memcache_bins as $bin => $_) {
           if ($mc = dmemcache_object($bin)) {
             $ascii_auth = _check_ascii_auth($mc);
@@ -173,23 +176,23 @@ function memcache_requirements($phase) {
               $s = $ascii_auth[0];
               $message = $ascii_auth[1];
 
-              $errors[] = $t('ASCII protocol authentication failed: %message (%host:%port).' . _memcache_statistics_link(), array(
+              $errors[] = $t('ASCII protocol authentication failed: %message (%host:%port).' . _memcache_statistics_link(), [
                 '%host' => $s['host'],
                 '%port' => $s['port'],
                 '%message' => $message,
-              ));
+              ]);
             }
           }
         }
       }
 
       // Make a test connection to all configured memcache servers.
-      $memcache_servers = settings_get('memcache_servers', array('127.0.0.1:11211' => 'default'));
+      $memcache_servers = settings_get('memcache_servers', ['127.0.0.1:11211' => 'default']);
       foreach ($memcache_servers as $server => $bin) {
         if ($cluster = dmemcache_object_cluster($bin)) {
           $memcache = dmemcache_instance($cluster['cluster']);
           if (dmemcache_connect($memcache, $server, $cluster['weight']) === FALSE) {
-            $errors[] = $t('Failed to connect to memcached server instance at %server.', array('%server' => $server));
+            $errors[] = $t('Failed to connect to memcached server instance at %server.', ['%server' => $server]);
           }
           else {
             if (!settings_get('memcache_persistent', TRUE)) {
@@ -219,8 +222,7 @@ function memcache_requirements($phase) {
             $errors[] = $t('Stored cache data was not deleted.');
           }
         }
-      }
-      catch (Exception $e) {
+      } catch (Exception $e) {
         // An unexpected exception occurred.
         $errors[] = $t('Unexpected failure when testing memcache configuration.');
       }
@@ -228,7 +230,10 @@ function memcache_requirements($phase) {
       // stampede protection. Plus, long keys will be truncated resulting in
       // dropped locks.
       if (settings_get('memcache_stampede_protection', FALSE) && strpos(settings_get('lock_inc', 'includes/lock.inc'), 'includes/lock.inc') !== FALSE) {
-        $warnings[] = $t('Backdrop\'s core lock implementation (%core) is not supported by memcache stampede protection. Enable the memcache lock implementation (%memcache) or disable memcache stampede protection.', array('%core' => 'includes/lock.inc', '%memcache' => backdrop_get_path('module', 'memcache') . "/memcache-lock.inc"));
+        $warnings[] = $t('Backdrop\'s core lock implementation (%core) is not supported by memcache stampede protection. Enable the memcache lock implementation (%memcache) or disable memcache stampede protection.', [
+          '%core' => 'includes/lock.inc',
+          '%memcache' => backdrop_get_path('module', 'memcache') . "/memcache-lock.inc",
+        ]);
       }
     }
 
@@ -238,11 +243,19 @@ function memcache_requirements($phase) {
       $errors = array_merge($errors, $warnings);
       unset($warnings);
       $requirements['memcache_extension']['severity'] = REQUIREMENT_ERROR;
-      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration, check the Backdrop logs for additional errors. Please review %readme for help resolving the following !issue: !errors', array('%readme' => backdrop_get_path('module', 'memcache') . '/' . 'README.md', '!issue' => format_plural(count($errors), 'issue', 'issues'), '!errors' => '<ul><li>' . implode('<li>', $errors)));
+      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration, check the Backdrop logs for additional errors. Please review %readme for help resolving the following !issue: !errors', [
+        '%readme' => backdrop_get_path('module', 'memcache') . '/' . 'README.md',
+        '!issue' => format_plural(count($errors), 'issue', 'issues'),
+        '!errors' => '<ul><li>' . implode('<li>', $errors),
+      ]);
     }
     elseif (!empty($warnings)) {
       $requirements['memcache_extension']['severity'] = REQUIREMENT_WARNING;
-      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration. Please review %readme for help resolving the following !issue: !warnings', array('%readme' => backdrop_get_path('module', 'memcache') . '/' . 'README.md', '!issue' => format_plural(count($warnings), 'issue', 'issues'), '!warnings' => '<ul><li>' . implode('<li>', $warnings)));
+      $requirements['memcache_extension']['description'] = $t('There is a problem with your memcache configuration. Please review %readme for help resolving the following !issue: !warnings', [
+        '%readme' => backdrop_get_path('module', 'memcache') . '/' . 'README.md',
+        '!issue' => format_plural(count($warnings), 'issue', 'issues'),
+        '!warnings' => '<ul><li>' . implode('<li>', $warnings),
+      ]);
     }
     else {
       $requirements['memcache_extension']['severity'] = REQUIREMENT_OK;
@@ -292,8 +305,8 @@ function _memcache_pecl_version_valid() {
 }
 
 /**
- * If ASCII protocol authentication is enabled, validate whether the current memcached
- * version meets the minimum and/or recommended requirements.
+ * If ASCII protocol authentication is enabled, validate whether the current
+ * memcached version meets the minimum and/or recommended requirements.
  */
 function _memcached_ascii_auth_version_valid($version) {
   if (_dmemcache_use_ascii_auth()) {
@@ -356,8 +369,8 @@ function _check_ascii_auth($memcache_original) {
  */
 function memcache_update_1000() {
   if (db_table_exists('variable')) {
-    db_query("DELETE FROM {variable} WHERE name LIKE :memcache", array(
+    db_query("DELETE FROM {variable} WHERE name LIKE :memcache", [
       ':memcache' => 'memcache_%',
-    ));
+    ]);
   }
 }

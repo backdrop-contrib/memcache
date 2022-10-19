@@ -5,17 +5,22 @@
  */
 
 class MemcacheTestCase extends BackdropWebTestCase {
+
   protected $profile = 'testing';
+
   protected $default_bin = 'cache_memcache';
+
   protected $default_cid = 'test_temporary';
+
   protected $default_value = 'MemcacheTest';
 
   /**
-   * Re-implements BackdropWebTestCase::setUp() so that we can override $settings.
+   * Re-implements BackdropWebTestCase::setUp() so that we can override
+   * $settings.
    *
    * @see BackdropWebTestCase::setUp()
    */
-  public function setUp($modules = array()) {
+  public function setUp($modules = []) {
     parent::setUp($modules);
     global $settings;
 
@@ -118,6 +123,7 @@ class MemcacheTestCase extends BackdropWebTestCase {
       }
     }
   }
+
 }
 
 class MemcacheSavingCase extends MemcacheTestCase {
@@ -147,11 +153,11 @@ class MemcacheSavingCase extends MemcacheTestCase {
    * Test the saving and restoring of an array.
    */
   public function testArray() {
-    $this->checkVariable(array(
+    $this->checkVariable([
       'backdrop1',
       'backdrop2' => 'backdrop3',
-      'backdrop4' => array('backdrop5', 'backdrop6'),
-    ));
+      'backdrop4' => ['backdrop5', 'backdrop6'],
+    ]);
   }
 
   /**
@@ -161,11 +167,11 @@ class MemcacheSavingCase extends MemcacheTestCase {
     $test_object = new stdClass();
     $test_object->test1 = $this->randomName(100);
     $test_object->test2 = 100;
-    $test_object->test3 = array(
+    $test_object->test3 = [
       'backdrop1',
       'backdrop2' => 'backdrop3',
-      'backdrop4' => array('backdrop5', 'backdrop6'),
-    );
+      'backdrop4' => ['backdrop5', 'backdrop6'],
+    ];
 
     cache_set('test_object', $test_object, $this->default_bin);
     $cache = cache_get('test_object', $this->default_bin);
@@ -194,7 +200,7 @@ class MemcacheSavingCase extends MemcacheTestCase {
     $val = rand(1, 1000);
     dmemcache_set($key, $val, 0, 'cache');
     $cache = dmemcache_get($key, 'cache');
-    $this->assertTrue($val === $cache, format_string('Integer is saved and restored properly with key @key', array('@key' => $key)));
+    $this->assertTrue($val === $cache, format_string('Integer is saved and restored properly with key @key', ['@key' => $key]));
   }
 
   /**
@@ -217,8 +223,12 @@ class MemcacheSavingCase extends MemcacheTestCase {
   public function checkVariable($var, $key = 'test_var') {
     cache_set($key, $var, $this->default_bin);
     $cache = cache_get($key, $this->default_bin);
-    $this->assertTrue(isset($cache->data) && $cache->data === $var, format_string('@type is saved and restored properly!key.', array('@type' => ucfirst(gettype($var)), '!key' => ($key != 'test_var') ? format_string(' with key @key', array('@key' => $key)) : '')));
+    $this->assertTrue(isset($cache->data) && $cache->data === $var, format_string('@type is saved and restored properly!key.', [
+      '@type' => ucfirst(gettype($var)),
+      '!key' => ($key != 'test_var') ? format_string(' with key @key', ['@key' => $key]) : '',
+    ]));
   }
+
 }
 
 /**
@@ -240,7 +250,7 @@ class MemcacheGetMultipleUnitTest extends MemcacheTestCase {
     $this->assertTrue($this->checkCacheExists('test:item2', $item2), 'Item 2 is cached.');
 
     // Fetch both records from the database with cache_get_multiple().
-    $item_ids = array('test:item1', 'test:item2');
+    $item_ids = ['test:item1', 'test:item2'];
     $items = $cache_bin->getMultiple($item_ids);
     $this->assertEqual($items['test:item1']->data, $item1, 'Item was returned from cache successfully.');
     $this->assertEqual($items['test:item2']->data, $item2, 'Item was returned from cache successfully.');
@@ -251,24 +261,26 @@ class MemcacheGetMultipleUnitTest extends MemcacheTestCase {
     $cache_bin->delete('test:item2');
 
     // Confirm that only one item is returned by cache_get_multiple().
-    $item_ids = array('test:item1', 'test:item2');
+    $item_ids = ['test:item1', 'test:item2'];
     $items = $cache_bin->getMultiple($item_ids);
     $this->assertEqual($items['test:item1']->data, $item1, 'Item was returned from cache successfully.');
     $this->assertFalse(isset($items['test:item2']), 'Item was not returned from the cache.');
     $this->assertTrue(count($items) == 1, 'Only valid cache entries returned.');
     $this->assertTrue(count($item_ids) == 1, 'Invalid cache ids still present.');
   }
+
 }
 
 /**
  * Test cache clearing methods.
  */
 class MemcacheClearCase extends MemcacheTestCase {
+
   /**
    * @see MemcacheTestCase::setUp()
    */
-  public function setUp($modules = array()) {
-    parent::setUp(array_merge($modules, array('memcache_test')));
+  public function setUp($modules = []) {
+    parent::setUp(array_merge($modules, ['memcache_test']));
     $this->default_value = $this->randomName(10);
   }
 
@@ -279,13 +291,13 @@ class MemcacheClearCase extends MemcacheTestCase {
     cache($this->default_bin)->set('test_cid_clear1', $this->default_value);
     cache($this->default_bin)->set('test_cid_clear2', $this->default_value);
     $this->assertTrue($this->checkCacheExists('test_cid_clear1', $this->default_value)
-                      && $this->checkCacheExists('test_cid_clear2', $this->default_value),
-                      'Two caches were created fot testing cache flush.');
+      && $this->checkCacheExists('test_cid_clear2', $this->default_value),
+      'Two caches were created fot testing cache flush.');
 
     cache($this->default_bin)->flush();
     $this->assertFalse($this->checkCacheExists('test_cid_clear1', $this->default_value)
-                      || $this->checkCacheExists('test_cid_clear2', $this->default_value),
-                      'Two caches removed after flushing entire bin.');
+      || $this->checkCacheExists('test_cid_clear2', $this->default_value),
+      'Two caches removed after flushing entire bin.');
 
     // Set a cache item with an expiry.
     cache($this->default_bin)->set('test_cid', $this->default_value, REQUEST_TIME + 3600);
@@ -356,19 +368,19 @@ class MemcacheClearCase extends MemcacheTestCase {
     $cache_bin->set('test_cid_clear_future', $this->default_value, REQUEST_TIME + 3600);
 
     $this->assertTrue($this->checkCacheExists('test_cid_clear_temporary', $this->default_value)
-                      && $this->checkCacheExists('test_cid_clear_permanent', $this->default_value)
-                      && $this->checkCacheExists('test_cid_clear_future', $this->default_value),
-                      'Three cache items were created for checking cache expiry.');
+      && $this->checkCacheExists('test_cid_clear_permanent', $this->default_value)
+      && $this->checkCacheExists('test_cid_clear_future', $this->default_value),
+      'Three cache items were created for checking cache expiry.');
 
     // This should clear only items with no lifetime (CACHE_TEMPORARY).
     $cache_bin->garbageCollection();
 
     $this->assertFalse($this->checkCacheExists('test_cid_clear_temporary', $this->default_value),
-                      'Temporary cache item was removed after clearing cid NULL.');
+      'Temporary cache item was removed after clearing cid NULL.');
     $this->assertTrue($this->checkCacheExists('test_cid_clear_permanent', $this->default_value),
-                      'Permanent cache item was not removed after clearing cid NULL.');
+      'Permanent cache item was not removed after clearing cid NULL.');
     $this->assertTrue($this->checkCacheExists('test_cid_clear_future', $this->default_value),
-                      'Future cache item was not removed after clearing cid NULL.');
+      'Future cache item was not removed after clearing cid NULL.');
   }
 
   /**
@@ -386,12 +398,12 @@ class MemcacheClearCase extends MemcacheTestCase {
     $cache_bin->set('test_cid_clear1', $this->default_value);
     $cache_bin->set('test_cid_clear2', $this->default_value);
     $this->assertTrue($this->checkCacheExists('test_cid_clear1', $this->default_value)
-                      && $this->checkCacheExists('test_cid_clear2', $this->default_value),
-                      'Two caches were created for checking garbage collection.');
+      && $this->checkCacheExists('test_cid_clear2', $this->default_value),
+      'Two caches were created for checking garbage collection.');
     $cache_bin->garbageCollection();
     $this->assertTrue($this->checkCacheExists('test_cid_clear1', $this->default_value)
-                      && $this->checkCacheExists('test_cid_clear2', $this->default_value),
-                      'Two caches still exists after garbage collection.');
+      && $this->checkCacheExists('test_cid_clear2', $this->default_value),
+      'Two caches still exists after garbage collection.');
   }
 
   /**
@@ -404,12 +416,12 @@ class MemcacheClearCase extends MemcacheTestCase {
     $cache_bin->set('test_cid_clear:1', $this->default_value);
     $cache_bin->set('test_cid_clear:2', $this->default_value);
     $this->assertTrue($this->checkCacheExists('test_cid_clear:1', $this->default_value)
-                      && $this->checkCacheExists('test_cid_clear:2', $this->default_value),
-                      'Two caches were created for checking delete by prefix.');
+      && $this->checkCacheExists('test_cid_clear:2', $this->default_value),
+      'Two caches were created for checking delete by prefix.');
     $cache_bin->deletePrefix('test_cid_clear:');
     $this->assertFalse($this->checkCacheExists('test_cid_clear:1', $this->default_value)
-                      || $this->checkCacheExists('test_cid_clear:2', $this->default_value),
-                      'Two caches removed after clearing cid substring by prefix.');
+      || $this->checkCacheExists('test_cid_clear:2', $this->default_value),
+      'Two caches removed after clearing cid substring by prefix.');
 
     // Test for the case where a wildcard object disappears, for example a
     // partial memcache restart or eviction.
@@ -473,6 +485,7 @@ class MemcacheClearCase extends MemcacheTestCase {
  * Tests memcache stampede protection.
  */
 class MemcacheStampedeProtection extends MemcacheTestCase {
+
   /**
    * Tests the opt-out functionality of stampede protection using a unit test.
    */
@@ -485,13 +498,13 @@ class MemcacheStampedeProtection extends MemcacheTestCase {
 
     // Set up stampede protection.
     $settings['memcache_stampede_protection'] = TRUE;
-    $settings['memcache_stampede_protection_ignore'] = array(
+    $settings['memcache_stampede_protection_ignore'] = [
       'test_bin',
-      'test_bin_2' => array(
+      'test_bin_2' => [
         'cid_no_prefix',
         'cid_with_prefix:*',
-      ),
-    );
+      ],
+    ];
 
     // Ensure the mock object is used.
     /** @var \MockBackdropMemcache $cache_object_bin */
@@ -518,12 +531,14 @@ class MemcacheStampedeProtection extends MemcacheTestCase {
 include_once __DIR__ . '/../memcache.inc';
 
 /**
- * Wraps the BackdropMemcache class in order to be able to call a protected method.
+ * Wraps BackdropMemcache class in order to be able to call a protected method.
  */
 class MockBackdropMemcache extends BackdropMemcache {
+
   public function isStampedeProtected($cid) {
     return parent::stampedeProtected($cid);
   }
+
 }
 
 /**
@@ -534,7 +549,9 @@ class MockBackdropMemcache extends BackdropMemcache {
  * this test.
  */
 class MemcacheRealWorldCase extends MemcacheTestCase {
+
   protected $profile = 'standard';
+
   protected $default_bin = 'cache_menu';
 
   /**
@@ -545,12 +562,12 @@ class MemcacheRealWorldCase extends MemcacheTestCase {
    */
   public function testMenu() {
     // Create and login user.
-    $account = $this->backdropCreateUser(array(
+    $account = $this->backdropCreateUser([
       'access administration pages',
       'administer blocks',
       'administer menu',
       'create post content',
-    ));
+    ]);
     $this->backdropLogin($account);
 
     // Add Menu Link to test with.
@@ -564,8 +581,8 @@ class MemcacheRealWorldCase extends MemcacheTestCase {
     // Change menu item multiple times and check if the change is reflected.
     for ($i = 0; $i < 3; $i++) {
       // Edit menu link.
-      $edit = array();
-      $edit['link_title'] = $this->randomName(16);;
+      $edit = [];
+      $edit['link_title'] = $this->randomName(16);
       $this->backdropPost("admin/structure/menu/item/{$item['mlid']}/edit", $edit, t('Save'));
       if (!$this->assertResponse(200)) {
         // One fail is enough.
@@ -596,7 +613,7 @@ class MemcacheRealWorldCase extends MemcacheTestCase {
     $this->assertResponse(200);
 
     $title = '!OriginalLink_' . $this->randomName(16);
-    $edit = array(
+    $edit = [
       'link_path' => $link,
       'link_title' => $title,
       'description' => '',
@@ -607,7 +624,7 @@ class MemcacheRealWorldCase extends MemcacheTestCase {
       'expanded' => TRUE,
       'parent' => $menu_name . ':' . $plid,
       'weight' => '0',
-    );
+    ];
 
     // Add menu link.
     $this->backdropPost(NULL, $edit, t('Save'));
@@ -615,20 +632,22 @@ class MemcacheRealWorldCase extends MemcacheTestCase {
     // Unlike most other modules, there is no confirmation message displayed.
     $this->assertText($title, 'Menu link was added');
 
-    $item = db_query('SELECT * FROM {menu_links} WHERE link_title = :title', array(':title' => $title))->fetchAssoc();
+    $item = db_query('SELECT * FROM {menu_links} WHERE link_title = :title', [':title' => $title])->fetchAssoc();
     return $item;
   }
+
 }
 
 /**
  * Test statistics generation.
  */
 class MemcacheStatisticsTestCase extends MemcacheTestCase {
+
   /**
    * @see MemcacheTestCase::setUp()
    */
-  public function setUp($modules = array()) {
-    parent::setUp(array_merge($modules, array('memcache_admin')));
+  public function setUp($modules = []) {
+    parent::setUp(array_merge($modules, ['memcache_admin']));
   }
 
   /**
@@ -644,11 +663,11 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     $test_full_key = dmemcache_key($this->default_cid, $this->default_bin);
 
     // List of bootstrap cids to check for.
-    $cache_bootstrap_cids = array(
+    $cache_bootstrap_cids = [
       'bootstrap_modules',
       'system_list',
-      'module_implements'
-    );
+      'module_implements',
+    ];
 
     // Turn on memcache statistics.
     config_set('memcache_admin.settings', 'show_statistics', TRUE);
@@ -667,14 +686,14 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     $this->assertNoRaw('<div id="memcache-devel">', 'Statistics not present.');
 
     // Create and login a user with access to view statistics.
-    $account = $this->backdropCreateUser(array('access memcache statistics'));
+    $account = $this->backdropCreateUser(['access memcache statistics']);
     $this->backdropLogin($account);
 
     $this->backdropGet('user');
     // Check that bootstrap statistics are visible.
     foreach ($cache_bootstrap_cids as $stat) {
       $key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'bootstrap-' . $stat;
-      $this->assertRaw("<td>get</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found.', array('@key' => $key)));
+      $this->assertRaw("<td>get</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found.', ['@key' => $key]));
     }
 
     // Clear bootstrap cache items.
@@ -687,20 +706,20 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     // set too, after they were removed.
     foreach ($cache_bootstrap_cids as $stat) {
       $key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'bootstrap-' . $stat;
-      $this->assertRaw("<td>get</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (get).', array('@key' => $key)));
+      $this->assertRaw("<td>get</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (get).', ['@key' => $key]));
       // @todo: This set is missing because it happens in the background
       // processing after the page is delivered.
       //$this->assertRaw("<td>set</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (set).', array('@key' => $key)));
     }
 
     // Clear the internal statistics store.
-    $_dmemcache_stats = array('all' => array(), 'ops' => array());
+    $_dmemcache_stats = ['all' => [], 'ops' => []];
     cache($this->default_bin)->get($this->default_cid);
-    $internal_keys = array(
+    $internal_keys = [
       '_wildcard_flushes',
       '_flush_timestamp',
       '_garbage_collection_timestamp',
-    );
+    ];
     // The first three cache gets should be the internal keys.
     foreach ($internal_keys as $index => $internal_key) {
       // No flush timestamp will be set yet.
@@ -713,7 +732,7 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     }
 
     // Clear the internal statistics store.
-    $_dmemcache_stats = array('all' => array(), 'ops' => array());
+    $_dmemcache_stats = ['all' => [], 'ops' => []];
     // Check that cache_set() statistics are being recorded.
     cache_set($this->default_cid, $this->default_value, $this->default_bin);
     $this->assertEqual($_dmemcache_stats['all'][0][1], 'set', 'Set action recorded.');
@@ -721,7 +740,7 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     $this->assertNotNull($_dmemcache_stats['ops']['set']);
 
     // Clear the internal statistics store.
-    $_dmemcache_stats = array('all' => array(), 'ops' => array());
+    $_dmemcache_stats = ['all' => [], 'ops' => []];
     // Check that cache_get() statistics are being recorded.
     cache_get($this->default_cid, $this->default_bin);
     $this->assertEqual($_dmemcache_stats['all'][0][1], 'get', 'Get action recorded.');
@@ -738,15 +757,16 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     $this->assertNoRaw('<div id="memcache-devel">', 'Statistics not present.');
 
     // Clear the internal statistics store.
-    $_dmemcache_stats = array('all' => array(), 'ops' => array());
+    $_dmemcache_stats = ['all' => [], 'ops' => []];
     // Confirm that statistics are not recorded for set()'s when disabled.
     cache_set($this->default_cid, $this->default_value, $this->default_bin);
-    $this->assertEqual($_dmemcache_stats, array('all' => array(), 'ops' => array()));
+    $this->assertEqual($_dmemcache_stats, ['all' => [], 'ops' => []]);
 
     // Clear the internal statistics store.
-    $_dmemcache_stats = array('all' => array(), 'ops' => array());
+    $_dmemcache_stats = ['all' => [], 'ops' => []];
     // Confirm that statistics are not recorded for get()'s when disabled.
     cache_get($this->default_cid, $this->default_bin);
-    $this->assertEqual($_dmemcache_stats, array('all' => array(), 'ops' => array()));
+    $this->assertEqual($_dmemcache_stats, ['all' => [], 'ops' => []]);
   }
+
 }

@@ -27,14 +27,14 @@ function memcache_drush_command() {
  *   The type of statistics to retrieve when using the Memcache extension.
  */
 function memcache_drush_stats($bin = 'cache', $stats_type = 'default') {
-  $arguments = array(
+  $arguments = [
     'bin' => $bin,
     'stats_type' => $stats_type,
-  );
-  $options = array(
+  ];
+  $options = [
     'interactive' => drush_get_option('interactive', 0),
     'aggregate' => drush_get_option('aggregate', 0),
-  );
+  ];
 
   memcache_bee_stats($arguments, $options);
 }
@@ -50,7 +50,7 @@ function memcache_drush_stats($bin = 'cache', $stats_type = 'default') {
  *   Returns TRUE on success or FALSE on failure.
  */
 function memcache_drush_flush($bin = 'cache') {
-  return memcache_bee_flush(array('bin' => $bin));
+  return memcache_bee_flush(['bin' => $bin]);
 }
 
 /**

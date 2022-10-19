@@ -8,8 +8,8 @@ include_once __DIR__ . '/memcache.test';
 
 class MemcacheLockFunctionalTest extends MemcacheTestCase {
 
-  function setUp($modules = array()) {
-    parent::setUp(array_merge($modules, array('memcache_test')));
+  function setUp($modules = []) {
+    parent::setUp(array_merge($modules, ['memcache_test']));
   }
 
   /**

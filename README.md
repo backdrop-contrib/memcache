@@ -17,35 +17,35 @@ Requirements
 Installation
 ------------
 
-These are the steps you need to take in order to use this software. Order
-is important.
+These are the steps you need to take in order to use this software. Order is
+important.
 
 1. Install the memcached binaries on your server and start the memcached
-   service. Follow best practices for securing the service; for example,
-   lock it down so only your web servers can make connections. Find community
-   maintained documentation with a number of walk-throughs for various
-   operating systems at https://www.drupal.org/node/1131458.
+   service. Follow best practices for securing the service; for example, lock it
+   down so only your web servers can make connections. Find community maintained
+   documentation with a number of walk-throughs for various operating systems
+   at https://www.drupal.org/node/1131458.
 2. Install your chosen PECL memcache extension -- this is the memcache client
    library which will be used by the Backdrop memcache module to interact with
-   the memcached server(s). Generally PECL memcache (3.0.6+) is recommended,
-   but PECL memcached (2.0.1+) also works well for some people. There are
-   known issues with older versions. Refer to the community maintained
-   documentation referenced above for more information.
+   the memcached server(s). Generally PECL memcache (3.0.6+) is recommended, but
+   PECL memcached (2.0.1+) also works well for some people. There are known
+   issues with older versions. Refer to the community maintained documentation
+   referenced above for more information.
 3. Put your site into offline mode.
 4. Download and install the memcache module.
 5. If you have previously been running the memcache module, run update.php.
-6. Optionally edit settings.php to configure the servers, clusters and bins
-   for memcache to use. If you skip this step the Backdrop module will attempt
-   to talk to the memcache server on port 11211 on the local host, storing all
-   data in a single bin. This is sufficient for most smaller, single-server
+6. Optionally edit settings.php to configure the servers, clusters and bins for
+   memcache to use. If you skip this step the Backdrop module will attempt to
+   talk to the memcache server on port 11211 on the local host, storing all data
+   in a single bin. This is sufficient for most smaller, single-server
    installations.
 7. Edit settings.php to make memcache the default cache class, for example:
    ```
    $settings['cache_backends'][] = 'modules/contrib/memcache/memcache.inc';
    $settings['cache_default_class'] = 'BackdropMemcache';
    ```
-   The cache_backends path needs to be adjusted based on where you installed
-   the module.
+   The cache_backends path needs to be adjusted based on where you installed the
+   module.
 8. Bring your site back online.
 
 Basic Configuration
@@ -68,8 +68,8 @@ Advanced Configuration
 This module is capable of working with one memcached instance or with multiple
 memcached instances run across one or more servers. The default is to use one
 server accessible on localhost port 11211. If that meets your needs, then the
-configuration settings outlined above are sufficient for the module to work.
-If you want to use multiple memcached instances, or if you are connecting to a
+configuration settings outlined above are sufficient for the module to work. If
+you want to use multiple memcached instances, or if you are connecting to a
 memcached instance located on a remote machine, further configuration is
 required.
 
@@ -79,7 +79,8 @@ instance running on localhost:11211. If this is true, and it is the only
 memcached instance you wish to use, no further configuration is required.
 
 If you have more than one memcached instance running, you need to add two arrays
-to $settings; memcache_servers and memcache_bins. The arrays follow this pattern:
+to $settings; memcache_servers and memcache_bins. The arrays follow this
+pattern:
 
 ```php
 $settings['memcache_servers'] => array(
@@ -142,7 +143,8 @@ memcache-flush (mcf)  Flush all Memcached objects in a bin.
 memcache-stats (mcs)  Retrieve statistics from Memcached.
 ```
 
-For more information about each command, use  the `help` commands. For example:
+For more information about each command, use the `help` commands. For example:
+
 ```
 bee help mcf
 drush help mcf
@@ -184,8 +186,8 @@ pattern used in Backdrop, so stampede protection can be selectively disabled for
 optimal performance. For example, a cache miss in Backdrop core's
 module_implements() won't execute a cache_set until backdrop_page_footer()
 calls module_implements_write_cache() which can occur much later in page
-generation. To avoid long hanging locks, stampede protection should be
-disabled for these delayed caching patterns.
+generation. To avoid long hanging locks, stampede protection should be disabled
+for these delayed caching patterns.
 
 Memcache stampede protection can be disabled for entire bins, specific cid's in
 specific bins, or cid's starting with a specific prefix in specific bins. For
@@ -215,27 +217,30 @@ Only change the following stampede protection settings if you're sure you know
 what you're doing, which requires first reading the memcache.inc code.
 
 The number of seconds passed to lock_acquire, defaults to '15':
+
 ```
 $settings['memcache_stampede_semaphore'] = 15;
 ```
 
 The number of seconds passed to lock_wait, defaults to 5:
+
 ```
 $settings['memcache_stampede_wait_time'] = 5;
 ```
 
 The maximum number of calls to lock_wait() due to stampede protection during a
 single request, defaults to 3:
+
 ```
 $settings['memcache_stampede_wait_limit'] = 3;
 ```
 
 When adjusting these variables, be aware that:
- - there is unlikely to be a good use case for setting wait_time higher
-   than stampede_semaphore;
- - wait_time * wait_limit is designed to default to a number less than
-   standard web server timeouts (i.e. 15 seconds vs. apache's default of
-   30 seconds).
+
+- there is unlikely to be a good use case for setting wait_time higher than
+  stampede_semaphore;
+- wait_time * wait_limit is designed to default to a number less than standard
+  web server timeouts (i.e. 15 seconds vs. apache's default of 30 seconds).
 
 Cache Header
 ------------
@@ -257,7 +262,7 @@ Persistent Connections
 ----------------------
 
 The memcache module uses persistent connections by default. If this causes you
-problems you can disable persistent connections by adding the  following to your
+problems you can disable persistent connections by adding the following to your
 settings.php:
 
 ```
@@ -336,9 +341,9 @@ enable either the igbinary or msgpack PECL extension. Both switch from using
 PHP's own human-readable serialized data structures to more compact binary
 formats.
 
-No special configuration is required.  If both extensions are enabled,
-memcache will automatically use the igbinary extension. If only one extension
-is enabled, memcache will automatically use that extension.
+No special configuration is required. If both extensions are enabled, memcache
+will automatically use the igbinary extension. If only one extension is enabled,
+memcache will automatically use that extension.
 
 You can optionally specify which extension is used by adding one of the
 following to your settings.php:
@@ -360,18 +365,22 @@ module and visit admin/reports/memcache.
 ### igbinary
 
 The igbinary project is maintained on GitHub:
- - https://github.com/igbinary/igbinary
+
+- https://github.com/igbinary/igbinary
 
 The official igbinary PECL extension can be found at:
- - https://pecl.php.net/package/igbinary
+
+- https://pecl.php.net/package/igbinary
 
 ### msgpack:
 
 The msgpack project is maintained at:
-  - https://msgpack.org
+
+- https://msgpack.org
 
 The official msgpack PECL extension can be found at:
-  - https://pecl.php.net/package/msgpack
+
+- https://pecl.php.net/package/msgpack
 
 Maximum Lengths
 ---------------
@@ -400,12 +409,12 @@ $settings['memcache_key_max_length'] = 250;
 
 By default, the memcached server can store objects up to 1 MiB in size. It's
 possible to increase the memcached page size to support larger objects, but this
-can also lead to wasted memory. Alternatively, the memcache module splits
-these large objects into smaller pieces. By default, the memcache module
-splits objects into 1 MiB sized pieces. You can modify this with the following
-tunable to match any special server configuration you may have. NOTE: Increasing
-this value without making changes to your memcached server can result in
-failures to cache large items.
+can also lead to wasted memory. Alternatively, the memcache module splits these
+large objects into smaller pieces. By default, the memcache module splits
+objects into 1 MiB sized pieces. You can modify this with the following tunable
+to match any special server configuration you may have. NOTE: Increasing this
+value without making changes to your memcached server can result in failures to
+cache large items.
 
 (Note: 1 MiB = 1024 x 1024 = 1048576.)
 
@@ -441,6 +450,7 @@ the Backdrop module.
 If using PECL memcache:
 Edit /etc/php.d/memcache.ini (path may changed based on package/distribution)
 and set the following:
+
 ```
 memcache.hash_strategy=consistent
 ```
@@ -494,9 +504,8 @@ timestamp|action|bin|cid|return code
 
 You can specify a custom log format by setting the memcache_debug_log_format
 variable. Supported variables that will be replaced in your format are:
-'!timestamp', '!action', '!bin', '!cid', and '!rc'.
-For example, the default log format (note that it includes a new line at the
-end) is:
+'!timestamp', '!action', '!bin', '!cid', and '!rc'. For example, the default log
+format (note that it includes a new line at the end) is:
 
 ```
 $settings['memcache_debug_log_format'] = "!timestamp|!action|!bin|!cid|!rc\n";
@@ -515,45 +524,45 @@ Toubleshooting
 --------------
 
 PROBLEM:
- Error:
-  Failed to load required file memcache/dmemcache.inc
- Or:
- cache_backends not properly configured in settings.php, failed to load
- required file memcache.inc
+Error:
+Failed to load required file memcache/dmemcache.inc Or:
+cache_backends not properly configured in settings.php, failed to load required
+file memcache.inc
 
 SOLUTION:
-You need to enable memcache in settings.php. Search for "Example 1" above
-for a basic configuration example.
+You need to enable memcache in settings.php. Search for "Example 1" above for a
+basic configuration example.
 
 PROBLEM:
- Error:
-  PECL !extension version %version is unsupported. Please update to
-  %recommended or newer.
+Error:
+PECL !extension version %version is unsupported. Please update to %recommended
+or newer.
 
 SOLUTION:
 Upgrade to the latest available PECL extension release. Older PECL extensions
 have known bugs and cause a variety of problems when using the memcache module.
 
 PROBLEM:
- Error:
-  Failed to connect to memcached server instance at <IP ADDRESS>.
+Error:
+Failed to connect to memcached server instance at <IP ADDRESS>.
 
 SOLUTION:
 Verify that the memcached daemon is running at the specified IP and PORT. To
 debug you can try to telnet directly to the memcache server from your web
 servers, example:
+
 ```
 telnet localhost 11211
 ```
 
 PROBLEM:
- Error:
-  Failed to store to then retrieve data from memcache.
+Error:
+Failed to store to then retrieve data from memcache.
 
 SOLUTION:
 Carefully review your settings.php configuration against the above
-documentation. This error simply does a cache_set followed by a cache_get
-and confirms that what is written to the cache can then be read back again.
+documentation. This error simply does a cache_set followed by a cache_get and
+confirms that what is written to the cache can then be read back again.
 
 The following code is what performs this test -- you can wrap this in a <?php
 tag and execute as a script with 'drush scr' to perform further debugging.
@@ -575,8 +584,8 @@ else {
 ```
 
 PROBLEM:
- Error:
-  Unexpected failure when testing memcache configuration.
+Error:
+Unexpected failure when testing memcache configuration.
 
 SOLUTION:
 Be sure the memcache module is properly installed, and that your settings.php
@@ -584,8 +593,8 @@ configuration is correct. This error means an exception was thrown when
 attempting to write to and then read from memcache.
 
 PROBLEM:
- Error:
-  Failed to set key: Failed to set key: cache_page-......
+Error:
+Failed to set key: Failed to set key: cache_page-......
 
 SOLUTION:
 Upgrade your PECL library to PECL package (2.2.1) (or higher).
@@ -597,8 +606,8 @@ See http://drupal.org/node/273824
 Memcached PECL Extension Support
 --------------------------------
 
-We also support the Memcached PECL extension. This extension backends
-to libmemcached and allows you to use some of the newer advanced features in
+We also support the Memcached PECL extension. This extension backends to
+libmemcached and allows you to use some of the newer advanced features in
 memcached 1.4.
 
 NOTE: It is important to realize that the memcache php.ini options do not impact
@@ -608,9 +617,9 @@ configure memcached in settings.php. Please look here for possible options:
 
 http://us2.php.net/manual/en/memcached.constants.php
 
-An example configuration block is below, this block also illustrates our
-default options (selected through performance testing). These options will be
-set unless overridden in settings.php.
+An example configuration block is below, this block also illustrates our default
+options (selected through performance testing). These options will be set unless
+overridden in settings.php.
 
 ```
 $settings['memcache_options'] = array(
@@ -621,37 +630,37 @@ $settings['memcache_options'] = array(
 Other options you could experiment with:
 
 - `Memcached::OPT_COMPRESSION => FALSE`
-  - This disables compression in the Memcached extension. This may save some
-    CPU cost, but can result in significantly more data being transmitted and
+  - This disables compression in the Memcached extension. This may save some CPU
+    cost, but can result in significantly more data being transmitted and
     stored. See: https://www.drupal.org/project/memcache/issues/2958403
 
 - `Memcached::OPT_BINARY_PROTOCOL => TRUE`
-  - This enables the Memcache binary protocol (only available in Memcached
-    1.4 and later). Note that some users have reported SLOWER performance
-    with this feature enabled. It should only be enabled on extremely high
-    traffic networks where memcache network traffic is a bottleneck.
-    Additional reading about the binary protocol:
+  - This enables the Memcache binary protocol (only available in Memcached 1.4
+    and later). Note that some users have reported SLOWER performance with this
+    feature enabled. It should only be enabled on extremely high traffic
+    networks where memcache network traffic is a bottleneck. Additional reading
+    about the binary protocol:
     http://code.google.com/p/memcached/wiki/MemcacheBinaryProtocol
 
 - `Memcached::OPT_TCP_NODELAY => TRUE`
-  - This enables the no-delay feature for connecting sockets; it's been
-    reported that this can speed up the Binary protocol (see above). This
-    tells the TCP stack to send packets immediately and without waiting for
-    a full payload, reducing per-packet network latency (disabling "Nagling").
+  - This enables the no-delay feature for connecting sockets; it's been reported
+    that this can speed up the Binary protocol (see above). This tells the TCP
+    stack to send packets immediately and without waiting for a full payload,
+    reducing per-packet network latency (disabling "Nagling").
 
 ## Authentication
 
 ### Binary Protocol SASL Authentication
 
 SASL authentication can be enabled as documented here:
-  http://php.net/manual/en/memcached.setsaslauthdata.php
-  https://code.google.com/p/memcached/wiki/SASLHowto
+http://php.net/manual/en/memcached.setsaslauthdata.php
+https://code.google.com/p/memcached/wiki/SASLHowto
 
 SASL authentication requires a memcached server with SASL support (version 1.4.3
 or greater built with --enable-sasl and started with the -S flag) and the PECL
 memcached client version 2.0.0 or greater also built with SASL support. Once
-these requirements are satisfied you can then enable SASL support in the Backdrop
-memcache module by enabling the binary protocol and setting
+these requirements are satisfied you can then enable SASL support in the
+Backdrop memcache module by enabling the binary protocol and setting
 memcache_sasl_username and memcache_sasl_password in settings.php. For example:
 
 ```
@@ -664,23 +673,23 @@ $settings['memcache_sasl_password'] = 'yourSASLPassword';
 
 ### ASCII Protocol Authentication
 
-If you do not want to enable the binary protocol, you can instead enable
-token authentication with the default ASCII protocol.
+If you do not want to enable the binary protocol, you can instead enable token
+authentication with the default ASCII protocol.
 
 ASCII protocol authentication requires Memcached version 1.5.15 or greater
 started with the -Y flag, and the PECL memcached client. It was originally
 documented in the memcached 1.5.15 release notes:
-  https://github.com/memcached/memcached/wiki/ReleaseNotes1515
+https://github.com/memcached/memcached/wiki/ReleaseNotes1515
 
-While it will work with 1.5.15 or greater, it's strongly recommended you
-use memcached 1.6.4 or greater due to the following bug fix:
-  https://github.com/memcached/memcached/wiki/ReleaseNotes164
+While it will work with 1.5.15 or greater, it's strongly recommended you use
+memcached 1.6.4 or greater due to the following bug fix:
+https://github.com/memcached/memcached/wiki/ReleaseNotes164
 
 Additional detail about this feature can be found in the protocol documentation:
-  https://github.com/memcached/memcached/blob/master/doc/protocol.txt
+https://github.com/memcached/memcached/blob/master/doc/protocol.txt
 
-All your memcached servers need to be started with the -Y option to specify
-a local path to an authfile which can contain up to 8 "username:pasword"
+All your memcached servers need to be started with the -Y option to specify a
+local path to an authfile which can contain up to 8 "username:pasword"
 pairs, any of which can be used for authentication. For example, a simple
 authfile may look as follows:
 
@@ -705,7 +714,8 @@ enable Automatic Discovery you must use Amazon's forked version of the PECL
 Memcached extension with Dynamic Client Mode enabled.
 
 Their PECL Memcached fork is maintained on GitHub:
- - https://github.com/awslabs/aws-elasticache-cluster-client-memcached-for-php
+
+- https://github.com/awslabs/aws-elasticache-cluster-client-memcached-for-php
 
 If you are using PHP 7 you need to select the php7 branch of their project.
 
@@ -719,8 +729,10 @@ $settings['memcache_options'] = array(
 ```
 
 You then configure the module normally. Amazon explains:
-  "If you use Automatic Discovery, you can use the cluster's Configuration
-   Endpoint to configure your Memcached client."
+
+> "If you use Automatic Discovery, you can use the cluster's Configuration
+> Endpoint to configure your Memcached client."
+
 
 The Configuration Endpoint must have 'cfg' in the name or it won't work. Further
 documentation can be found here:
@@ -728,6 +740,7 @@ http://docs.aws.amazon.com/AmazonElastiCache/latest/UserGuide/Endpoints.html
 
 If you don't want to use Automatic Discovery you don't need to install the
 forked PECL extension, Amazon explains:
-  "If you don't use Automatic Discovery, you must configure your client to use
-   the individual node endpoints for reads and writes. You must also keep track
-   of them as you add and remove nodes."
+
+> "If you don't use Automatic Discovery, you must configure your client to use
+> the individual node endpoints for reads and writes. You must also keep track
+> of them as you add and remove nodes."
