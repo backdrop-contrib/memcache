@@ -1,34 +1,34 @@
-[MemCacheSavingCase]
+[MemcacheSavingCase]
 name = Metatag base tag tests
 description = Check our variables are saved and restored the right way.
 group = Memcache
 file = memcache.test
 
-[MemCacheGetMultipleUnitTest]
+[MemcacheGetMultipleUnitTest]
 name = Fetching multiple cache items
 description = Confirm that multiple records are fetched correctly.
 group = Memcache
 file = memcache.test
 
-[MemCacheClearCase]
+[MemcacheClearCase]
 name = Cache clear test
 description = Check our clearing is done the proper way.
 group = Memcache
 file = memcache.test
 
-[MemCacheStampedeProtection]
+[MemcacheStampedeProtection]
 name = Memcache stampede protection
 description =Tests memcache stampede protection.
 group = Memcache
 file = memcache.test
 
-[MemCacheRealWorldCase]
+[MemcacheRealWorldCase]
 name = Real world cache tests
 description = Test some real world cache scenarios.
 group = Memcache
 file = memcache.test
 
-[MemCacheStatisticsTestCase]
+[MemcacheStatisticsTestCase]
 name = Statistics tests
 description = Test that statistics are being recorded appropriately.
 group = Memcache

@@ -120,7 +120,7 @@ class MemcacheTestCase extends BackdropWebTestCase {
   }
 }
 
-class MemCacheSavingCase extends MemcacheTestCase {
+class MemcacheSavingCase extends MemcacheTestCase {
 
   /**
    * Test the saving and restoring of a string.
@@ -224,7 +224,7 @@ class MemCacheSavingCase extends MemcacheTestCase {
 /**
  * Test cache_get_multiple().
  */
-class MemCacheGetMultipleUnitTest extends MemcacheTestCase {
+class MemcacheGetMultipleUnitTest extends MemcacheTestCase {
 
   /**
    * Test cache_get_multiple().
@@ -263,7 +263,7 @@ class MemCacheGetMultipleUnitTest extends MemcacheTestCase {
 /**
  * Test cache clearing methods.
  */
-class MemCacheClearCase extends MemcacheTestCase {
+class MemcacheClearCase extends MemcacheTestCase {
   /**
    * @see MemcacheTestCase::setUp()
    */
@@ -472,7 +472,7 @@ class MemCacheClearCase extends MemcacheTestCase {
 /**
  * Tests memcache stampede protection.
  */
-class MemCacheStampedeProtection extends MemcacheTestCase {
+class MemcacheStampedeProtection extends MemcacheTestCase {
   /**
    * Tests the opt-out functionality of stampede protection using a unit test.
    */
@@ -533,7 +533,7 @@ class MockBackdropMemcache extends BackdropMemcache {
  * Looks like I've not chance to change the cache settings to what's needed by
  * this test.
  */
-class MemCacheRealWorldCase extends MemcacheTestCase {
+class MemcacheRealWorldCase extends MemcacheTestCase {
   protected $profile = 'standard';
   protected $default_bin = 'cache_menu';
 
@@ -623,7 +623,7 @@ class MemCacheRealWorldCase extends MemcacheTestCase {
 /**
  * Test statistics generation.
  */
-class MemCacheStatisticsTestCase extends MemcacheTestCase {
+class MemcacheStatisticsTestCase extends MemcacheTestCase {
   /**
    * @see MemcacheTestCase::setUp()
    */
