@@ -29,12 +29,12 @@ function memcache_admin_requirements($phase) {
   }
   else if ($phase == 'runtime') {
     if (!function_exists('dmemcache_object_cluster') && module_exists('memcache_admin')) {
-      $requirements['memcache_admin'] = array(
+      $requirements['memcache_admin'] = [
         'title' => $t('Memcache admin'),
         'value' => $t('cache_backends not properly configured in settings.php, failed to load required file memcache.inc.'),
         'description' => $t('You have enabled the memcache_admin module without properly configuring cache_backends in %settings. Please review %readme for more information.', ['%settings' => 'settings.php', '%readme' => 'README.md']),
         'severity' => REQUIREMENT_WARNING,
-      );
+      ];
     }
   }
   return $requirements;

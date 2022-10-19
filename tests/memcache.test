@@ -709,7 +709,7 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
       $this->assertRaw("<td>get</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (get).', ['@key' => $key]));
       // @todo: This set is missing because it happens in the background
       // processing after the page is delivered.
-      //$this->assertRaw("<td>set</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (set).', array('@key' => $key)));
+      //$this->assertRaw("<td>set</td><td>bootstrap</td><td>{$key}</td>", format_string('Key @key found (set).', ['@key' => $key]));
     }
 
     // Clear the internal statistics store.
