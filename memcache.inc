@@ -307,7 +307,7 @@ class BackdropMemcache implements BackdropCacheInterface {
    */
   function flush() {
     $this->flush_timestamp = REQUEST_TIME;
-    $this->cacheStateSet('flush', $this->bin, $this->flush_timestamp);
+    $this->cacheStateSet('flush_timestamp', $this->bin, $this->flush_timestamp);
 
     // Remove the list of set cache IDs that occurred prior to this flush.
     $this->set_cids = [];
@@ -478,7 +478,7 @@ class BackdropMemcache implements BackdropCacheInterface {
         // along with cache consistency.
         if ($length < $key_length) {
           $this->wildcard_flushes[$this->bin] = [];
-          $this->cacheStateSet('flush', $this->bin, REQUEST_TIME);
+          $this->cacheStateSet('flush_timestamp', $this->bin, REQUEST_TIME);
           $this->flush_timestamp = REQUEST_TIME;
           $this->set_cids = [];
         }
