@@ -5,6 +5,11 @@ This project provides a cache backend to connect Backdrop websites to memcache.
 Memcache can be faster than MySQL-based caches when memcache is run locally on
 the same machine as PHP is running.
 
+**Not Stable!** The Backdrop port of Memcache is not yet suitable for
+production usage. Unless you have a strong preference for using Memcache,
+using the [Redis module](https://github.com/backdrop-contrib/redis) may be a
+better solution for Backdrop sites.
+
 Requirements
 ------------
 
