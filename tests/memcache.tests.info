@@ -1,5 +1,5 @@
 [MemcacheSavingCase]
-name = Metatag base tag tests
+name = Memcache base tag tests
 description = Check our variables are saved and restored the right way.
 group = Memcache
 file = memcache.test
