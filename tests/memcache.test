@@ -492,6 +492,147 @@ class MemcacheClearCase extends MemcacheTestCase {
 }
 
 /**
+ * Tests that flushed items stay invalid when memcache loses internal state.
+ *
+ * Each step runs in a separate request, as a real site would, so that nothing
+ * is held in static variables. Evictions are simulated by deleting the key.
+ */
+class MemcacheStateLossCase extends MemcacheTestCase {
+
+  /**
+   * The cache bin used by the memcache_test module.
+   *
+   * cache() removes "cache_" from bin names, so "memcache_test_bin" is stored
+   * as "memtest_bin".
+   */
+  protected $test_bin = 'memtest_bin';
+
+  /**
+   * @see MemcacheTestCase::setUp()
+   */
+  public function setUp($modules = []) {
+    parent::setUp(array_merge($modules, ['memcache_test']));
+  }
+
+  /**
+   * Sets a cache item in a separate request.
+   */
+  protected function setItem($cid, $value = 'value') {
+    $this->backdropGetAJAX('memcache-test/set/' . $cid . '/' . $value);
+  }
+
+  /**
+   * Asserts whether a cache item is valid in a separate request.
+   */
+  protected function assertItem($cid, $expected, $message) {
+    $data = $this->backdropGetAJAX('memcache-test/get/' . $cid);
+    $this->assertEqual(!empty($data['cid']), $expected, $message);
+  }
+
+  /**
+   * Test that a lost _flush_timestamp does not restore flushed items.
+   */
+  public function testFlushTimestampLoss() {
+    $this->setItem('item');
+    sleep(1);
+    $this->backdropGetAJAX('memcache-test/flush');
+    $this->assertItem('item', FALSE, 'Item is invalid after a flush.');
+
+    dmemcache_delete('_flush_timestamp', 'bootstrap');
+    $this->assertItem('item', FALSE, 'Item is still invalid after _flush_timestamp is lost.');
+  }
+
+  /**
+   * Test that a lost wildcard counter does not restore flushed items.
+   */
+  public function testWildcardCounterLossAfterFlush() {
+    // An item stamped with a counter value from an earlier flush.
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix');
+    $this->setItem('prefix_stamped');
+    // An item set before the first flush of a different prefix.
+    $this->setItem('unstamped_item');
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix');
+    $this->backdropGetAJAX('memcache-test/delete-prefix/unstamped');
+    $this->assertItem('prefix_stamped', FALSE, 'Stamped item is invalid after a wildcard flush.');
+    $this->assertItem('unstamped_item', FALSE, 'Unstamped item is invalid after a wildcard flush.');
+
+    dmemcache_delete('.wildcard-prefix', $this->test_bin);
+    dmemcache_delete('.wildcard-unstamped', $this->test_bin);
+    $this->assertItem('prefix_stamped', FALSE, 'Stamped item is still invalid after its counter is lost.');
+    $this->assertItem('unstamped_item', FALSE, 'Unstamped item is still invalid after its counter is lost.');
+  }
+
+  /**
+   * Test that a wildcard flush still works after its counter is lost.
+   */
+  public function testWildcardFlushAfterCounterLoss() {
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix');
+    $this->setItem('prefix_item');
+    $this->assertItem('prefix_item', TRUE, 'Item is valid before the flush.');
+
+    dmemcache_delete('.wildcard-prefix', $this->test_bin);
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix');
+    $this->assertItem('prefix_item', FALSE, 'Item is invalid when flushed after its counter is lost.');
+  }
+
+  /**
+   * Test that flushing a prefix does not affect items of unflushed prefixes.
+   */
+  public function testUnflushedPrefixStaysValid() {
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix_a');
+    sleep(1);
+    $this->setItem('prefix_b_item');
+    $this->assertItem('prefix_b_item', TRUE, 'Item is valid when set.');
+
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix_a');
+    $this->assertItem('prefix_b_item', TRUE, 'Item is valid after flushing a different prefix.');
+    $this->assertItem('prefix_b_item', TRUE, 'Item is valid on a later request.');
+  }
+
+  /**
+   * Test that a lost _wildcard_flushes does not restore flushed items.
+   */
+  public function testWildcardFlushesLoss() {
+    $this->setItem('prefix_item');
+    sleep(1);
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix');
+    $this->assertItem('prefix_item', FALSE, 'Item is invalid after a wildcard flush.');
+
+    dmemcache_delete('_wildcard_flushes', 'bootstrap');
+    $this->assertItem('prefix_item', FALSE, 'Item is still invalid after _wildcard_flushes is lost.');
+  }
+
+  /**
+   * Test that a lost _garbage_collection_timestamp does not restore items.
+   */
+  public function testGarbageCollectionTimestampLoss() {
+    $this->setItem('item');
+    sleep(1);
+    dmemcache_delete('_garbage_collection_timestamp', 'bootstrap');
+    $this->assertItem('item', FALSE, 'Items are invalidated when _garbage_collection_timestamp is lost.');
+  }
+
+  /**
+   * Test that recovering from lost state only invalidates existing items once.
+   */
+  public function testRecoveryIsNotRepeated() {
+    $this->backdropGetAJAX('memcache-test/delete-prefix/prefix');
+    dmemcache_delete('_flush_timestamp', 'bootstrap');
+    dmemcache_delete('.wildcard-prefix', $this->test_bin);
+    // The first request recovers the state and the wildcard counter.
+    $this->assertItem('prefix_item', FALSE, 'Item does not exist yet.');
+    sleep(1);
+
+    $this->setItem('prefix_item');
+    $this->assertItem('prefix_item', TRUE, 'Item set after recovery is valid.');
+    $this->assertItem('prefix_item', TRUE, 'Item is still valid on a later request.');
+    $this->assertTrue(is_array(dmemcache_get('_flush_timestamp', 'bootstrap')), '_flush_timestamp was restored.');
+    $this->assertTrue((bool) dmemcache_get('.wildcard-prefix', $this->test_bin), 'Wildcard counter was restored.');
+  }
+
+}
+
+/**
  * Tests memcache stampede protection.
  */
 class MemcacheStampedeProtection extends MemcacheTestCase {

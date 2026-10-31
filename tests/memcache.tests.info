@@ -34,6 +34,12 @@ description = Test that statistics are being recorded appropriately.
 group = Memcache
 file = memcache.test
 
+[MemcacheStateLossCase]
+name = Lost state tests
+description = Confirm flushed items stay invalid when internal state is evicted.
+group = Memcache
+file = memcache.test
+
 [MemcacheLockFunctionalTest]
 name = Locking framework tests
 description = Confirm locking works between two separate requests.

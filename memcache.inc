@@ -218,7 +218,7 @@ class BackdropMemcache implements BackdropCacheInterface {
     $cache->created_microtime = $created_microtime;
     $cache->expire = $expire;
     // Record the previous number of wildcard flushes affecting our cid.
-    $cache->flushes = $this->wildcardFlushes($cid);
+    $cache->flushes = $this->wildcardFlushes($cid, TRUE);
 
     // Determine stored memcache item lifetime.
     if ($expire == CACHE_PERMANENT) {
@@ -351,7 +351,11 @@ class BackdropMemcache implements BackdropCacheInterface {
    */
   static function flushBinsOnShutdown() {
     // Get a fresh copy of the wildcard_flushes variable.
-    $wildcard_flushes = BackdropMemcache::cacheStateGet('wildcard_flushes', NULL, []);
+    $wildcard_flushes = BackdropMemcache::cacheStateGet('wildcard_flushes');
+    // Do not recreate lost state, which would hide its loss from later requests.
+    if (!isset($wildcard_flushes)) {
+      return;
+    }
     // Load the static variable that was populated during clear().
     $bins_flushed = &backdrop_static('memcache_bins_flushed', []);
     // Step through each bin and fully remove it from wildcard_flushes.
@@ -372,12 +376,14 @@ class BackdropMemcache implements BackdropCacheInterface {
    *
    * @param string $cid
    *   The cache id to check.
+   * @param bool $create
+   *   Whether to create any matching wildcard counters that are missing.
    *
    * @return int
    *   Sum of all matching wildcards for the given cache id.
    */
-  protected function wildcardFlushes($cid) {
-    return array_sum($this->wildcards($cid));
+  protected function wildcardFlushes($cid, $create = FALSE) {
+    return array_sum($this->wildcards($cid, FALSE, $create));
   }
 
   /**
@@ -387,7 +393,7 @@ class BackdropMemcache implements BackdropCacheInterface {
    * statically so multiple cache requests for the same item on the same page
    * load doesn't add overhead.
    */
-  protected function wildcards($cid, $flush = FALSE) {
+  protected function wildcards($cid, $flush = FALSE, $create = FALSE) {
     static $wildcards = [];
     $matching = [];
 
@@ -430,23 +436,30 @@ class BackdropMemcache implements BackdropCacheInterface {
       // Do a multi-get to retrieve all possibly matching wildcard flushes.
       if (!empty($lookup)) {
         $values = dmemcache_get_multi($lookup, $this->bin, $this->memcache);
-        if (is_array($values)) {
-          // Prepare an array of matching wildcards.
-          $matching = array_merge($matching, $values);
-          // Store matches in the static cache.
-          if (isset($wildcards[$this->bin])) {
-            $wildcards[$this->bin] = array_merge($wildcards[$this->bin], $values);
-          }
-          else {
-            $wildcards[$this->bin] = $values;
-          }
-          $lookup = array_diff_key($lookup, $values);
+        // Failed lookups are stored as well, so we don't have to do repeat
+        // lookups on single page loads.
+        foreach ($lookup as $wildcard) {
+          $values[$wildcard] = $values[$wildcard] ?? 0;
         }
+        // Prepare an array of matching wildcards.
+        $matching = array_merge($matching, $values);
+        // Store matches in the static cache.
+        if (isset($wildcards[$this->bin])) {
+          $wildcards[$this->bin] = array_merge($wildcards[$this->bin], $values);
+        }
+        else {
+          $wildcards[$this->bin] = $values;
+        }
+      }
 
-        // Also store failed lookups in our static cache, so we don't have to
-        // do repeat lookups on single page loads.
-        foreach ($lookup as $key => $key) {
-          $wildcards[$this->bin][$key] = 0;
+      // Items stamped with a counter can detect when that counter is lost, so
+      // make sure a counter exists for every wildcard when storing an item.
+      if ($create) {
+        foreach ($matching as $wildcard => $value) {
+          if (empty($value)) {
+            $matching[$wildcard] = $this->wildcardCounterCreate($wildcard);
+            $wildcards[$this->bin][$wildcard] = $matching[$wildcard];
+          }
         }
       }
     }
@@ -488,15 +501,43 @@ class BackdropMemcache implements BackdropCacheInterface {
         $this->cacheStateSet('wildcard_flushes', NULL, $this->wildcard_flushes);
       }
       $key = '.wildcard-' . $cid;
-      if (isset($wildcards[$this->bin][$key])) {
-        $wildcards[$this->bin][$key]++;
-      }
-      else {
-        $wildcards[$this->bin][$key] = 1;
-      }
+      // Counters must always increase, even if a previous value was evicted.
+      $previous = $wildcards[$this->bin][$key] ?? 0;
+      $wildcards[$this->bin][$key] = max($previous + 1, $this->wildcardCounterValue());
       dmemcache_set($key, $wildcards[$this->bin][$key], 0, $this->bin);
     }
     return $matching;
+  }
+
+  /**
+   * Returns a wildcard counter value higher than any previously generated.
+   *
+   * @return int
+   *   The current time in microseconds.
+   */
+  protected function wildcardCounterValue() {
+    return (int) (microtime(TRUE) * 1000000);
+  }
+
+  /**
+   * Creates a wildcard counter that is missing from memcache.
+   *
+   * @param string $wildcard
+   *   The key of the wildcard counter.
+   *
+   * @return int
+   *   The value of the counter.
+   */
+  protected function wildcardCounterCreate($wildcard) {
+    $value = $this->wildcardCounterValue();
+    if (!dmemcache_add($wildcard, $value, 0, $this->bin, $this->memcache)) {
+      // Use the existing value if another request created the counter first.
+      $existing = dmemcache_get($wildcard, $this->bin, $this->memcache);
+      if ($existing) {
+        $value = $existing;
+      }
+    }
+    return $value;
   }
 
   /**
@@ -506,8 +547,27 @@ class BackdropMemcache implements BackdropCacheInterface {
     // Previously cached content won't have ->flushes defined.  We could
     // force flush, but instead leave this up to the site admin.
     $flushes = isset($cache->flushes) ? (int) $cache->flushes : 0;
-    if ($flushes < $this->wildcardFlushes($cid)) {
+    $matching = $this->wildcards($cid);
+
+    // A sum higher than the item's means a matching wildcard has been flushed.
+    // A lower sum means a counter was lost, which may have recorded a flush.
+    if ($flushes != array_sum($matching)) {
       return FALSE;
+    }
+
+    // Items stored before a wildcard length was first flushed have no counter
+    // to compare against. If there is no counter for that length now, it may be
+    // that it was lost after flushing this item. There is no way to tell, so
+    // assume so. Items set during this request were not affected by a loss.
+    if (!isset($this->set_cids[$cid]) && in_array(0, $matching)) {
+      $keys = array_keys($this->wildcard_flushes[$this->bin]);
+      $wildcard_key = substr($cid, 0, strlen(reset($keys)));
+      foreach ($matching as $wildcard => $value) {
+        $flush_length = strlen($wildcard) - strlen('.wildcard-');
+        if (empty($value) && $cache->created <= $this->wildcard_flushes[$this->bin][$wildcard_key][$flush_length]) {
+          return FALSE;
+        }
+      }
     }
     return TRUE;
   }
@@ -625,10 +685,41 @@ class BackdropMemcache implements BackdropCacheInterface {
     $this->wildcard_lifetime = settings_get('memcache_wildcard_lifetime', MEMCACHE_WILDCARD_INVALIDATE);
     $this->set_cids = [];
 
-    $this->wildcard_flushes = $this->cacheStateGet('wildcard_flushes', NULL, []);
-    $this->flush_timestamp = $this->cacheStateGet('flush_timestamp', $this->bin, 0);
-    $this->garbage_collection_timestamp = $this->cacheStateGet('garbage_collection_timestamp', $this->bin, 0);
+    $wildcard_flushes = $this->cacheStateGet('wildcard_flushes');
+    $flush_timestamps = $this->cacheStateGet('flush_timestamp');
+    $garbage_collection_timestamps = $this->cacheStateGet('garbage_collection_timestamp');
+
+    // Without its state, memcache would consider items valid that have already
+    // been flushed. This state may be evicted or lost independently of the
+    // items, so if any of it is missing all existing items are invalidated.
+    if (!isset($wildcard_flushes) || !isset($flush_timestamps) || !isset($garbage_collection_timestamps)) {
+      $flush_timestamps = $this->cacheStateReset($flush_timestamps);
+    }
+
+    $this->wildcard_flushes = $wildcard_flushes ?? [];
+    $this->flush_timestamp = max($flush_timestamps[$this->bin] ?? 0, $flush_timestamps['_epoch'] ?? 0);
+    $this->garbage_collection_timestamp = $garbage_collection_timestamps[$this->bin] ?? 0;
     $this->flushed = min($this->flush_timestamp, REQUEST_TIME);
+  }
+
+  /**
+   * Restores missing state and invalidates all items in all bins.
+   *
+   * @param array|null $flush_timestamps
+   *   The current flush timestamps, if any.
+   *
+   * @return array
+   *   The updated flush timestamps.
+   */
+  static function cacheStateReset($flush_timestamps) {
+    dmemcache_add('_wildcard_flushes', [], 0, 'bootstrap');
+    dmemcache_add('_garbage_collection_timestamp', [], 0, 'bootstrap');
+    $flush_timestamps = $flush_timestamps ?? [];
+    // Items created in this same second were created after the loss, and cannot
+    // have been flushed before it.
+    $flush_timestamps['_epoch'] = time() - 1;
+    dmemcache_set('_flush_timestamp', $flush_timestamps, 0, 'bootstrap');
+    return $flush_timestamps;
   }
 
   static function cacheStateGet($state_setting_name, $bin = NULL, $default = NULL) {
@@ -653,9 +744,10 @@ class BackdropMemcache implements BackdropCacheInterface {
     // Retrieve current values if setting a bin-specific state value.
     if ($bin) {
       $array = dmemcache_get($state_setting_name, 'bootstrap');
-      // dmemcache_get() returns FALSE if the state has not been set.
+      // dmemcache_get() returns FALSE if the state has been lost. Other bins
+      // lost their values too, so record that for their next reload.
       if (!is_array($array)) {
-        $array = [];
+        $array = ['_epoch' => time() - 1];
       }
       $array[$bin] = $value;
       dmemcache_set($state_setting_name, $array, 0, 'bootstrap');
