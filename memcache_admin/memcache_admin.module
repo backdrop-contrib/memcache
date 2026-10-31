@@ -749,13 +749,18 @@ function memcache_admin_exit() {
   if (config_get('memcache_admin.settings', 'show_statistics') && function_exists('user_access') && user_access('access memcache statistics')) {
     $output = '';
     if (!empty($_dmemcache_stats['ops'])) {
+      // Format a copy, as these counters may still be incremented by any memcache
+      // operations that occur after this hook.
+      $rows = [];
       foreach ($_dmemcache_stats['ops'] as $row => $stats) {
-        $_dmemcache_stats['ops'][$row][0] = check_plain($stats[0]);
-        $_dmemcache_stats['ops'][$row][1] = number_format($stats[1], 2);
         $hits = number_format(_memcache_admin_stats_percent($stats[2], $stats[3]), 1);
         $misses = number_format(_memcache_admin_stats_percent($stats[3], $stats[2]), 1);
-        $_dmemcache_stats['ops'][$row][2] = number_format($stats[2]) . " ($hits%)";
-        $_dmemcache_stats['ops'][$row][3] = number_format($stats[3]) . " ($misses%)";
+        $rows[$row] = [
+          check_plain($stats[0]),
+          number_format($stats[1], 2),
+          number_format($stats[2]) . " ($hits%)",
+          number_format($stats[3]) . " ($misses%)",
+        ];
       }
       $variables = [
         'header' => [
@@ -764,7 +769,7 @@ function memcache_admin_exit() {
           t('total hits'),
           t('total misses'),
         ],
-        'rows' => $_dmemcache_stats['ops'],
+        'rows' => $rows,
       ];
       $output .= theme('table', $variables);
     }
