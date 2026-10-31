@@ -115,10 +115,7 @@ function memcache_bee_stats($arguments = [], $options = []) {
  *   Returns TRUE on success or FALSE on failure.
  */
 function memcache_bee_flush($arguments = [], $options = []) {
-  $bin = $arguments['bin'];
-  if (empty($bin)) {
-    $bin = 'cache';
-  }
+  $bin = !empty($arguments['bin']) ? $arguments['bin'] : 'cache';
 
   $is_drush = function_exists('drush_env');
   $t = $is_drush ? 'dt' : 'bt';
@@ -151,7 +148,7 @@ function _memcache_cli_is_available() {
   $message = $is_drush ? 'drush_log' : 'bee_message';
 
   if (!class_exists('BackdropMemcache', FALSE)) {
-    $message('BackdropMemcache class is not available', 'Please review README.md to check your site configuration.', 'error');
+    $message('BackdropMemcache class is not available. Please review README.md to check your site configuration.', 'error');
     return FALSE;
   }
   return TRUE;

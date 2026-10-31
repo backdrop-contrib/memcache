@@ -229,6 +229,16 @@ class MemcacheSavingCase extends MemcacheTestCase {
     ]));
   }
 
+  /**
+   * Test that dmemcache_close() closes the connection to memcache.
+   */
+  public function testConnectionClose() {
+    $memcache_servers = settings_get('memcache_servers', ['127.0.0.1:11211' => 'default']);
+    $memcache = dmemcache_instance($this->default_bin);
+    $this->assertTrue(dmemcache_connect($memcache, key($memcache_servers), 1), 'Connected to memcache.');
+    $this->assertTrue(dmemcache_close($memcache), 'Connection to memcache closed.');
+  }
+
 }
 
 /**
@@ -722,13 +732,12 @@ class MemcacheStatisticsTestCase extends MemcacheTestCase {
     ];
     // The first three cache gets should be the internal keys.
     foreach ($internal_keys as $index => $internal_key) {
-      // No flush timestamp will be set yet.
-      $expected_status = $internal_key === '_flush_timestamp' ? 'miss' : 'hit';
+      // All are set, as installing the test site flushes the cache bins.
       $stat_key = $GLOBALS['backdrop_test_info']['test_run_id'] . 'bootstrap-' . $internal_key;
       $this->assertEqual($_dmemcache_stats['all'][$index][1], 'get', "Get action on internal key $internal_key successful.");
       $this->assertEqual($_dmemcache_stats['all'][$index][2], 'bootstrap', "Internal $internal_key stored in bootstrap bin.");
       $this->assertEqual($_dmemcache_stats['all'][$index][3], $stat_key, "Internal key $internal_key found.");
-      $this->assertEqual($_dmemcache_stats['all'][$index][4], $expected_status, "Get action on internal key $internal_key is a $expected_status.");
+      $this->assertEqual($_dmemcache_stats['all'][$index][4], 'hit', "Get action on internal key $internal_key is a hit.");
     }
 
     // Clear the internal statistics store.
