@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [1.x-1.x]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - name: PHP syntax
+        run: git ls-files '*.php' '*.module' '*.inc' '*.install' '*.test' | xargs -n1 php -l
+
+  tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: memcache
+      - name: Start Backdrop, MariaDB, and Memcached
+        run: |
+          docker network create backdrop
+          docker run -d --name db --network backdrop -e MARIADB_ROOT_PASSWORD=root -e MARIADB_DATABASE=backdrop mariadb:11.4
+          for i in $(seq 1 60); do docker exec db healthcheck.sh --connect && break; sleep 2; done
+          docker run -d --name memcached --network backdrop memcached:1.6
+          docker run -d --name web --network backdrop -e BACKDROP_DB_HOST=db -e BACKDROP_DB_USER=root -e BACKDROP_DB_PASSWORD=root -e BACKDROP_DB_NAME=backdrop -v "$PWD/memcache:/var/www/html/modules/memcache:ro" backdrop:latest
+          sleep 3
+      - name: Install the Memcached PHP extension
+        run: |
+          docker exec web apt-get update -qq
+          docker exec web apt-get install -y -qq libmemcached-dev libssl-dev zlib1g-dev
+          docker exec web sh -c "yes '' | pecl install memcached"
+          docker exec web docker-php-ext-enable memcached
+          docker exec web apache2ctl graceful
+      - name: Install Backdrop
+        run: |
+          docker exec web php core/scripts/install.sh --db-url=mysql://root:root@db/backdrop --account-name=admin --account-pass="$(openssl rand -hex 12)" --site-name=CI
+          docker exec web cp modules/memcache/.github/settings.ci.php settings.local.php
+          docker exec web chown -R www-data files
+      - name: Run the module tests
+        run: docker exec -u www-data web php core/scripts/run-tests.sh --url http://localhost --verbose --force --concurrency 4 --group Memcache
