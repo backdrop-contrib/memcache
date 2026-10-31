@@ -241,8 +241,8 @@ function _memcache_admin_stats_average($stats) {
   return t('!read in !get gets; !write in !set sets', [
     '!get' => number_format($get, 2),
     '!set' => number_format($set, 2),
-    '!read' => format_size(number_format($read, 2)),
-    '!write' => format_size(number_format($write, 2)),
+    '!read' => format_size((int) $read),
+    '!write' => format_size((int) $write),
   ]);
 }
 
@@ -304,7 +304,7 @@ function memcache_admin_stats($bin = 'default') {
   }
   $bin = memcache_admin_bin_mapping($bin);
   $output = '';
-  $server = [];
+  $servers = [];
   $stats = dmemcache_stats($bin, 'default', TRUE);
   if (empty($stats[$bin])) {
     // Failed to load statistics. Provide a useful error about where to get
@@ -353,6 +353,11 @@ function memcache_admin_stats($bin = 'default') {
         $data['memory_available'][$server] = _memcache_admin_stats_memory($statistics);
         $data['memory_evictions'][$server] = number_format($statistics['evictions']);
       }
+    }
+
+    // None of the servers could be reached, so there is nothing to report.
+    if (empty($servers)) {
+      return $output;
     }
 
     // Don't display aggregate totals if there's only one server.
@@ -486,7 +491,7 @@ function memcache_admin_stats_raw($bin, $server, $type = 'default') {
     $stats = dmemcache_stats($cluster, $type, FALSE);
   }
   $breadcrumbs = [
-    l(t('Home'), NULL),
+    l(t('Home'), '<front>'),
     l(t('Administer'), 'admin'),
     l(t('Reports'), 'admin/reports'),
     l(t('Memcache'), 'admin/reports/memcache'),
@@ -505,7 +510,7 @@ function memcache_admin_stats_raw($bin, $server, $type = 'default') {
       'type' => $type,
     ]);
   }
-  elseif ($type == 'slabs' && is_array($stats[$cluster]) && count($stats[$cluster])) {
+  elseif ($type == 'slabs' && !empty($stats[$cluster]) && is_array($stats[$cluster])) {
     $output = theme('memcache_admin_stats_raw_table', [
       'cluster' => $cluster,
       'server' => $server,

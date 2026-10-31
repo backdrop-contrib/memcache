@@ -635,6 +635,10 @@ class BackdropMemcache implements BackdropCacheInterface {
     // Prevent conflicts and indicate this is a special cache entry.
     $state_setting_name = '_' . $state_setting_name;
     $value = dmemcache_get($state_setting_name, 'bootstrap');
+    // dmemcache_get() returns FALSE if the state has not been set.
+    if ($value === FALSE) {
+      return $default;
+    }
     // If this is a bin-specific setting, check for the key within that array.
     if ($bin) {
       $value = $value[$bin] ?? $default;
@@ -649,7 +653,10 @@ class BackdropMemcache implements BackdropCacheInterface {
     // Retrieve current values if setting a bin-specific state value.
     if ($bin) {
       $array = dmemcache_get($state_setting_name, 'bootstrap');
-      $array = $array ?? [];
+      // dmemcache_get() returns FALSE if the state has not been set.
+      if (!is_array($array)) {
+        $array = [];
+      }
       $array[$bin] = $value;
       dmemcache_set($state_setting_name, $array, 0, 'bootstrap');
     }

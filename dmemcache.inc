@@ -64,9 +64,8 @@ function dmemcache_set($key, $value, $exp = 0, $bin = 'cache', $mc = NULL) {
       }
     }
     else {
-      // The PECL Memcache library throws an E_NOTICE level error, which
-      // $php_errormsg doesn't catch, so we need to log it ourselves.
-      // Catch it with our own error handler.
+      // The PECL Memcache library throws an E_NOTICE level error, so we need to
+      // log it ourselves. Catch it with our own error handler.
       backdrop_static_reset('_dmemcache_error_handler');
       set_error_handler('_dmemcache_error_handler');
       $rc = $mc->set($full_key, $value, MEMCACHE_COMPRESSED, $exp);
@@ -288,10 +287,11 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
 
   $full_key = dmemcache_key($key, $bin);
   if ($mc || $mc = dmemcache_object($bin)) {
-    $track_errors = ini_set('track_errors', '1');
-    $php_errormsg = '';
+    // Catch any errors from the PECL library with our own error handler.
+    backdrop_static_reset('_dmemcache_error_handler');
+    set_error_handler('_dmemcache_error_handler');
 
-    $result = @$mc->get($full_key);
+    $result = $mc->get($full_key);
     if (empty($result)) {
       if (!isset($memcache_ascii_auth)) {
         $memcache_ascii_auth = _dmemcache_use_ascii_auth();
@@ -300,21 +300,23 @@ function dmemcache_get($key, $bin = 'cache', $mc = NULL) {
         // As sets are costly we first check that the server is not authorized first.
         $rc = $mc->getByKey($full_key, BACKDROP_MEMCACHE_ASCII_AUTH_LIFETIME_KEY);
         if (empty($rc) && _dmemcache_ensure_ascii_auth($full_key, $mc)) {
-          $result = @$mc->get($full_key);
+          $result = $mc->get($full_key);
         }
       }
     }
+
+    // Restore the Backdrop error handler.
+    restore_error_handler();
+    $dmemcache_errormsg = backdrop_static('_dmemcache_error_handler');
 
     // This is a multi-part value.
     if (is_object($result) && !empty($result->multi_part_data)) {
       $result = _dmemcache_get_pieces($result->data, $result->cid, $bin, $mc);
     }
 
-    if (!empty($php_errormsg)) {
-      register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get: !msg', ['!msg' => $php_errormsg], WATCHDOG_WARNING);
-      $php_errormsg = '';
+    if (!empty($dmemcache_errormsg)) {
+      register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get: !msg', ['!msg' => $dmemcache_errormsg], WATCHDOG_WARNING);
     }
-    ini_set('track_errors', $track_errors);
   }
 
   if ($collect_stats) {
@@ -449,16 +451,18 @@ function dmemcache_get_multi($keys, $bin = 'cache', $mc = NULL) {
       }
     }
     elseif ($mc instanceof Memcache) {
-      $track_errors = ini_set('track_errors', '1');
-      $php_errormsg = '';
+      // Catch any errors from the PECL library with our own error handler.
+      backdrop_static_reset('_dmemcache_error_handler');
+      set_error_handler('_dmemcache_error_handler');
 
-      $results = @$mc->get($full_keys);
+      $results = $mc->get($full_keys);
 
-      if (!empty($php_errormsg)) {
-        register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get_multi: !msg', ['!msg' => $php_errormsg], WATCHDOG_WARNING);
-        $php_errormsg = '';
+      // Restore the Backdrop error handler.
+      restore_error_handler();
+      $dmemcache_errormsg = backdrop_static('_dmemcache_error_handler');
+      if (!empty($dmemcache_errormsg)) {
+        register_shutdown_function('watchdog', 'memcache', 'Exception caught in dmemcache_get_multi: !msg', ['!msg' => $dmemcache_errormsg], WATCHDOG_WARNING);
       }
-      ini_set('track_errors', $track_errors);
 
       // Order is not guaranteed, map responses to order of requests.
       if (is_array($results)) {
@@ -535,6 +539,7 @@ function dmemcache_delete($key, $bin = 'cache', $mc = NULL) {
           // again in another thread, then delete the actual cache data pieces.
           dmemcache_piece_cache_set($fk, NULL);
           $next_id = 0;
+          $inner_rc = FALSE;
           do {
             if ($inner_rc) {
               _dmemcache_write_debug("delete", $bin, $full_key, $inner_rc);
@@ -917,6 +922,8 @@ function dmemcache_connect($memcache, $server, $weight) {
       '!host' => t('localhost:11211'),
       '!socket' => t('unix:///path/to/socket'),
     ], WATCHDOG_WARNING);
+    // The PECL libraries require an integer port.
+    $port = 0;
   }
 
   if ($extension == 'Memcache') {
@@ -955,10 +962,10 @@ function dmemcache_connect($memcache, $server, $weight) {
 function dmemcache_close($memcache) {
   $extension = dmemcache_extension();
   if ($extension == 'Memcache' && $memcache instanceof Memcache) {
-    $rc = @$memcache->close;
+    $rc = @$memcache->close();
   }
   elseif ($extension == 'Memcached' && $memcache instanceof Memcached) {
-    $rc = @$memcache->quit;
+    $rc = @$memcache->quit();
   }
   else {
     $rc = FALSE;
@@ -984,7 +991,7 @@ function dmemcache_close($memcache) {
  * @return Memcache|Memcached
  *   A Memcache object, or FALSE on failure.
  */
-function dmemcache_object($bin = NULL, $reset = FALSE) {
+function dmemcache_object($bin = 'cache', $reset = FALSE) {
   static $memcache_cache = [];
   static $memcache_servers = [];
   static $memcache_bins = [];
