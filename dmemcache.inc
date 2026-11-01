@@ -711,7 +711,7 @@ function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggrega
 /**
  * Determine which memcache extension to use: memcache or memcached.
  *
- * By default prefer the 'Memcache' PHP extension, though the default can be
+ * By default prefer the 'Memcached' PHP extension, though the default can be
  * overridden by setting memcache_extension in settings.php.
  */
 function dmemcache_extension() {
@@ -722,12 +722,12 @@ function dmemcache_extension() {
     if (isset($preferred) && class_exists($preferred, FALSE)) {
       $extension = ucfirst(strtolower($preferred));
     }
-    // If no extension is set, default to Memcache.
-    elseif (class_exists('Memcache', FALSE)) {
-      $extension = 'Memcache';
-    }
+    // If no extension is set, default to Memcached.
     elseif (class_exists('Memcached', FALSE)) {
       $extension = 'Memcached';
+    }
+    elseif (class_exists('Memcache', FALSE)) {
+      $extension = 'Memcache';
     }
     else {
       $extension = FALSE;
@@ -845,7 +845,7 @@ function dmemcache_instance($bin = 'cache') {
   }
   else {
     if (!$error) {
-      register_shutdown_function('watchdog', 'memcache', 'You must enable the PHP <a href="http://php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="http://php.net/manual/en/book.memcached.php">memcached</a> extension to use memcache.inc.', [], WATCHDOG_ERROR);
+      register_shutdown_function('watchdog', 'memcache', 'You must enable the PHP <a href="http://php.net/manual/en/book.memcached.php">memcached</a> (recommended) or <a href="http://php.net/manual/en/book.memcache.php">memcache</a> extension to use memcache.inc.', [], WATCHDOG_ERROR);
       $error = TRUE;
     }
   }

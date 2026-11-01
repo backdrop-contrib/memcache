@@ -96,10 +96,10 @@ function memcache_requirements($phase) {
     $requirements['memcache_extension']['title'] = $t('Memcache');
     if (!$memcache && !$memcached) {
       $requirements['memcache_extension']['severity'] = REQUIREMENT_ERROR;
-      $requirements['memcache_extension']['value'] = $t('Required PHP extension not found. Install the <a href="https://www.php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="https://www.php.net/manual/en/book.memcached.php">memcached</a> extension.');
+      $requirements['memcache_extension']['value'] = $t('Required PHP extension not found. Install the <a href="https://www.php.net/manual/en/book.memcached.php">memcached</a> (recommended) or <a href="https://www.php.net/manual/en/book.memcache.php">memcache</a> extension.');
     }
     else {
-      $requirements['memcache_extension']['value'] = $t('PHP %extension Extension', ['%extension' => $memcache ? $t('Memcache') : $t('Memcached')]);
+      $requirements['memcache_extension']['value'] = $t('PHP %extension Extension', ['%extension' => $memcached ? $t('Memcached') : $t('Memcache')]);
     }
   }
   if ($phase == 'runtime') {
@@ -107,7 +107,7 @@ function memcache_requirements($phase) {
     $warnings = [];
 
     if (!$memcache && !$memcached) {
-      $errors[] = $t('Required PHP extension not found. Install the <a href="https://www.php.net/manual/en/book.memcache.php">memcache</a> (recommended) or <a href="https://www.php.net/manual/en/book.memcached.php">memcached</a> extension.');
+      $errors[] = $t('Required PHP extension not found. Install the <a href="https://www.php.net/manual/en/book.memcached.php">memcached</a> (recommended) or <a href="https://www.php.net/manual/en/book.memcache.php">memcache</a> extension.');
     }
 
     if (!function_exists('dmemcache_set')) {

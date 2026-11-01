@@ -15,9 +15,8 @@ Requirements
 
 - Availability of a memcached daemon: http://memcached.org/
 - One of the two PECL memcache packages:
-  - http://pecl.php.net/package/memcache (recommended)
-  - http://pecl.php.net/package/memcached (latest versions require PHP 5.2 or
-    greater)
+  - http://pecl.php.net/package/memcached (recommended)
+  - http://pecl.php.net/package/memcache
 
 Installation
 ------------
@@ -32,9 +31,10 @@ important.
    at https://www.drupal.org/node/1131458.
 2. Install your chosen PECL memcache extension -- this is the memcache client
    library which will be used by the Backdrop memcache module to interact with
-   the memcached server(s). Generally PECL memcache (3.0.6+) is recommended, but
-   PECL memcached (2.0.1+) also works well for some people. There are known
-   issues with older versions. Refer to the community maintained documentation
+   the memcached server(s). Generally PECL memcached (2.0.1+) is recommended, but
+   PECL memcache (4.0.5+) is also supported. There are known issues with older
+   versions. If both are available, memcached is used unless configured
+   otherwise, see "Choosing a PECL Extension" below. Refer to the community maintained documentation
    referenced above for more information.
 3. Put your site into offline mode.
 4. Download and install the memcache module.
@@ -452,16 +452,6 @@ To use this module with multiple memcached servers, it is important that you set
 the hash strategy to consistent. This is controlled in the PHP extension, not
 the Backdrop module.
 
-If using PECL memcache:
-Edit /etc/php.d/memcache.ini (path may changed based on package/distribution)
-and set the following:
-
-```
-memcache.hash_strategy=consistent
-```
-
-You need to reload apache httpd after making that change.
-
 If using PECL memcached:
 Memcached options can be controlled in settings.php. The following setting is
 needed:
@@ -471,6 +461,16 @@ $settings['memcache_options'] = array(
   Memcached::OPT_DISTRIBUTION => Memcached::DISTRIBUTION_CONSISTENT,
 );
 ```
+
+If using PECL memcache:
+Edit /etc/php.d/memcache.ini (path may changed based on package/distribution)
+and set the following:
+
+```
+memcache.hash_strategy=consistent
+```
+
+You need to reload apache httpd after making that change.
 
 Debug Logging
 -------------
@@ -608,15 +608,32 @@ WARNING:
 Zlib compression at the php.ini level and Memcache conflict.
 See http://drupal.org/node/273824
 
+Choosing a PECL Extension
+-------------------------
+
+If both the memcached and memcache PECL extensions are available, the memcached
+extension is used. To use a specific extension, add one of the following to your
+settings.php:
+
+```
+$settings['memcache_extension'] = 'Memcached';
+$settings['memcache_extension'] = 'Memcache';
+```
+
+NOTE: The two extensions may not be able to read each other's stored data. If a
+site changes which extension it uses, including because both extensions are
+available on a site that previously preferred memcache, flush memcached after
+making the change.
+
 Memcached PECL Extension Support
 --------------------------------
 
-We also support the Memcached PECL extension. This extension backends to
+The Memcached PECL extension is the recommended extension. It backends to
 libmemcached and allows you to use some of the newer advanced features in
-memcached 1.4.
+memcached.
 
 NOTE: It is important to realize that the memcache php.ini options do not impact
-the memcached extension, this new extension doesn't read in options that way.
+the memcached extension, this extension doesn't read in options that way.
 Instead, it takes options directly from Backdrop. Because of this, you must
 configure memcached in settings.php. Please look here for possible options:
 
