@@ -34,8 +34,7 @@ important.
    the memcached server(s). Generally PECL memcached (2.0.1+) is recommended, but
    PECL memcache (4.0.5+) is also supported. There are known issues with older
    versions. If both are available, memcached is used unless configured
-   otherwise, see "Choosing a PECL Extension" below. Refer to the community maintained documentation
-   referenced above for more information.
+   otherwise, see "Choosing a PECL Extension" below.
 3. Put your site into offline mode.
 4. Download and install the memcache module.
 5. If you have previously been running the memcache module, run update.php.
@@ -616,8 +615,8 @@ extension is used. To use a specific extension, add one of the following to your
 settings.php:
 
 ```
-$settings['memcache_extension'] = 'Memcached';
-$settings['memcache_extension'] = 'Memcache';
+$settings['memcache_extension'] = 'memcached';
+$settings['memcache_extension'] = 'memcache';
 ```
 
 NOTE: The two extensions may not be able to read each other's stored data. If a

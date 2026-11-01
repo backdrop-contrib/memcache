@@ -711,7 +711,7 @@ function dmemcache_stats($stats_bin = 'cache', $stats_type = 'default', $aggrega
 /**
  * Determine which memcache extension to use: memcache or memcached.
  *
- * By default prefer the 'Memcached' PHP extension, though the default can be
+ * By default, prefer the 'Memcached' PHP extension, though the default can be
  * overridden by setting memcache_extension in settings.php.
  */
 function dmemcache_extension() {
