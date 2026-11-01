@@ -37,12 +37,12 @@ class BackdropMemcache implements BackdropCacheInterface {
   protected $wildcard_lifetime;
 
   /**
-   * @var int Timestamp of the last full flush of this cache bin.
+   * @var float Time in microseconds of the last full flush of this cache bin.
    */
   protected $flush_timestamp;
 
   /**
-   * @var int Timestamp of the last garbage collection of this cache bin.
+   * @var float Time in microseconds of the last garbage collection of this bin.
    */
   protected $garbage_collection_timestamp;
 
@@ -55,8 +55,8 @@ class BackdropMemcache implements BackdropCacheInterface {
    * @var array A list of cache IDs that have been set this request.
    *
    * This variable is utilized to keep track of cache entries that are set
-   * within the same REQUEST_TIME (the same second) and return them as valid
-   * even when a cache flush has occurred within the same request.
+   * within this request and return them as valid even when a cache flush has
+   * occurred after the start of the request.
    */
   protected $set_cids = [];
 
@@ -121,7 +121,7 @@ class BackdropMemcache implements BackdropCacheInterface {
       // timestamp set items.
       //
       // Test whether this cache has been garbage collected.
-      $cache_garbage_collected = $cache->created <= $this->garbage_collection_timestamp;
+      $cache_garbage_collected = $cache->created_microtime <= $this->garbage_collection_timestamp;
 
       // Item is expired if the request time is greater than expire time.
       $cache_timestamp_expired = $cache->expire <= REQUEST_TIME;
@@ -132,7 +132,7 @@ class BackdropMemcache implements BackdropCacheInterface {
 
       // Items created before the last full flush against this bin are always
       // invalid.
-      if (!$set_this_request && $cache->created <= $this->flush_timestamp) {
+      if (!$set_this_request && $cache->created_microtime <= $this->flush_timestamp) {
         $cache = FALSE;
       }
       // Test for expired items.
@@ -204,8 +204,6 @@ class BackdropMemcache implements BackdropCacheInterface {
    * Implements BackdropCacheInterface::set().
    */
   public function set($cid, $data, $expire = CACHE_PERMANENT) {
-    $created_microtime = round(microtime(TRUE), 3);
-
     // Record this as being a freshly set cache ID so it's considered valid
     // even if a cache flush occurred within this same request.
     $this->set_cids[$cid] = $expire;
@@ -215,7 +213,9 @@ class BackdropMemcache implements BackdropCacheInterface {
     $cache->cid = $cid;
     $cache->data = is_object($data) ? clone $data : $data;
     $cache->created = REQUEST_TIME;
-    $cache->created_microtime = $created_microtime;
+    // Data may have been read at any point in this request, so a flush after the
+    // start of the request must invalidate this item for other requests.
+    $cache->created_microtime = $_SERVER['REQUEST_TIME_FLOAT'];
     $cache->expire = $expire;
     // Record the previous number of wildcard flushes affecting our cid.
     $cache->flushes = $this->wildcardFlushes($cid, TRUE);
@@ -290,6 +290,9 @@ class BackdropMemcache implements BackdropCacheInterface {
    *   A wildcard prefix.
    */
   function deletePrefix($prefix) {
+    // Other bins or requests may have changed the shared state, which is written
+    // back in full when recording this flush.
+    $this->loadState();
     // Register a wildcard flush for current cid.
     $this->wildcards($prefix, TRUE);
   }
@@ -306,7 +309,7 @@ class BackdropMemcache implements BackdropCacheInterface {
    * retrieved before that time are considered invalid and not returned.
    */
   function flush() {
-    $this->flush_timestamp = REQUEST_TIME;
+    $this->flush_timestamp = microtime(TRUE);
     $this->cacheStateSet('flush_timestamp', $this->bin, $this->flush_timestamp);
 
     // Remove the list of set cache IDs that occurred prior to this flush.
@@ -340,7 +343,7 @@ class BackdropMemcache implements BackdropCacheInterface {
   function garbageCollection() {
     // Update the timestamp of the last CACHE_TEMPORARY clear. All
     // temporary cache items created before this will be considered invalid.
-    $this->garbage_collection_timestamp = REQUEST_TIME;
+    $this->garbage_collection_timestamp = microtime(TRUE);
     $this->cacheStateSet('garbage_collection_timestamp', $this->bin, $this->garbage_collection_timestamp);
     // Remove any temporary items set this request.
     $this->set_cids = array_diff($this->set_cids, [CACHE_TEMPORARY]);
@@ -491,12 +494,12 @@ class BackdropMemcache implements BackdropCacheInterface {
         // along with cache consistency.
         if ($length < $key_length) {
           $this->wildcard_flushes[$this->bin] = [];
-          $this->cacheStateSet('flush_timestamp', $this->bin, REQUEST_TIME);
-          $this->flush_timestamp = REQUEST_TIME;
+          $this->flush_timestamp = microtime(TRUE);
+          $this->cacheStateSet('flush_timestamp', $this->bin, $this->flush_timestamp);
           $this->set_cids = [];
         }
         $key = substr($cid, 0, $key_length);
-        $this->wildcard_flushes[$this->bin][$key][$length] = REQUEST_TIME;
+        $this->wildcard_flushes[$this->bin][$key][$length] = microtime(TRUE);
 
         $this->cacheStateSet('wildcard_flushes', NULL, $this->wildcard_flushes);
       }
@@ -564,7 +567,7 @@ class BackdropMemcache implements BackdropCacheInterface {
       $wildcard_key = substr($cid, 0, strlen(reset($keys)));
       foreach ($matching as $wildcard => $value) {
         $flush_length = strlen($wildcard) - strlen('.wildcard-');
-        if (empty($value) && $cache->created <= $this->wildcard_flushes[$this->bin][$wildcard_key][$flush_length]) {
+        if (empty($value) && $cache->created_microtime <= $this->wildcard_flushes[$this->bin][$wildcard_key][$flush_length]) {
           return FALSE;
         }
       }
@@ -684,7 +687,13 @@ class BackdropMemcache implements BackdropCacheInterface {
   public function reloadVariables() {
     $this->wildcard_lifetime = settings_get('memcache_wildcard_lifetime', MEMCACHE_WILDCARD_INVALIDATE);
     $this->set_cids = [];
+    $this->loadState();
+  }
 
+  /**
+   * Loads the flush state shared between all cache bins and requests.
+   */
+  protected function loadState() {
     $wildcard_flushes = $this->cacheStateGet('wildcard_flushes');
     $flush_timestamps = $this->cacheStateGet('flush_timestamp');
     $garbage_collection_timestamps = $this->cacheStateGet('garbage_collection_timestamp');
@@ -715,9 +724,7 @@ class BackdropMemcache implements BackdropCacheInterface {
     dmemcache_add('_wildcard_flushes', [], 0, 'bootstrap');
     dmemcache_add('_garbage_collection_timestamp', [], 0, 'bootstrap');
     $flush_timestamps = $flush_timestamps ?? [];
-    // Items created in this same second were created after the loss, and cannot
-    // have been flushed before it.
-    $flush_timestamps['_epoch'] = time() - 1;
+    $flush_timestamps['_epoch'] = microtime(TRUE);
     dmemcache_set('_flush_timestamp', $flush_timestamps, 0, 'bootstrap');
     return $flush_timestamps;
   }
@@ -747,7 +754,7 @@ class BackdropMemcache implements BackdropCacheInterface {
       // dmemcache_get() returns FALSE if the state has been lost. Other bins
       // lost their values too, so record that for their next reload.
       if (!is_array($array)) {
-        $array = ['_epoch' => time() - 1];
+        $array = ['_epoch' => microtime(TRUE)];
       }
       $array[$bin] = $value;
       dmemcache_set($state_setting_name, $array, 0, 'bootstrap');
