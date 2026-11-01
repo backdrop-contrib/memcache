@@ -40,6 +40,12 @@ description = Confirm flushed items stay invalid when internal state is evicted.
 group = Memcache
 file = memcache.test
 
+[MemcacheFlushAccuracyCase]
+name = Flush accuracy tests
+description = Confirm flushes are kept and apply to the right items.
+group = Memcache
+file = memcache.test
+
 [MemcacheLockFunctionalTest]
 name = Locking framework tests
 description = Confirm locking works between two separate requests.

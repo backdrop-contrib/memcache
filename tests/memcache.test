@@ -633,6 +633,111 @@ class MemcacheStateLossCase extends MemcacheTestCase {
 }
 
 /**
+ * Tests that flushes are recorded correctly and apply to the right items.
+ *
+ * New objects are used to act as later requests, without per-object state.
+ */
+class MemcacheFlushAccuracyCase extends MemcacheTestCase {
+
+  /**
+   * Returns a bin name that is unique to this run, as memcache state persists.
+   */
+  protected function uniqueBin() {
+    return 'flush_' . strtolower($this->randomName());
+  }
+
+  /**
+   * Stores an item as if set by another request that started at a given time.
+   */
+  protected function setOtherRequestItem($bin, $cid, $request_start, $expire = CACHE_PERMANENT) {
+    $cache = new stdClass();
+    $cache->cid = $cid;
+    $cache->data = $this->default_value;
+    $cache->created = (int) $request_start;
+    $cache->created_microtime = $request_start;
+    $cache->expire = $expire;
+    $cache->flushes = 0;
+    dmemcache_set($cid, $cache, 0, $bin);
+  }
+
+  /**
+   * Test that two bins can each flush a prefix during a single request.
+   */
+  public function testDeletePrefixInMultipleBins() {
+    $first_bin = $this->uniqueBin();
+    $second_bin = $this->uniqueBin();
+    $first = new BackdropMemcache($first_bin);
+    $second = new BackdropMemcache($second_bin);
+    $this->setOtherRequestItem($first_bin, 'prefix_item', microtime(TRUE));
+    $this->setOtherRequestItem($second_bin, 'prefix_item', microtime(TRUE));
+    $this->assertTrue((new BackdropMemcache($first_bin))->get('prefix_item'), 'Item in the first bin is valid before the flush.');
+    $this->assertTrue((new BackdropMemcache($second_bin))->get('prefix_item'), 'Item in the second bin is valid before the flush.');
+
+    $first->deletePrefix('prefix');
+    $second->deletePrefix('prefix');
+
+    $first = new BackdropMemcache($first_bin);
+    $second = new BackdropMemcache($second_bin);
+    $this->assertFalse($first->get('prefix_item'), 'Item in the first bin flushed is invalid.');
+    $this->assertFalse($second->get('prefix_item'), 'Item in the second bin flushed is invalid.');
+  }
+
+  /**
+   * Test that a prefix flush does not revert one made after this object loaded.
+   */
+  public function testDeletePrefixWithStaleObject() {
+    $bin = $this->uniqueBin();
+    $stale = new BackdropMemcache($bin);
+    $other = new BackdropMemcache($bin);
+    $this->setOtherRequestItem($bin, 'other_item', microtime(TRUE));
+    $this->assertTrue((new BackdropMemcache($bin))->get('other_item'), 'Item is valid before the flush.');
+    $other->deletePrefix('other');
+
+    $stale->deletePrefix('stale');
+
+    $cache = new BackdropMemcache($bin);
+    $this->assertFalse($cache->get('other_item'), 'Earlier flush was kept by an object loaded before it.');
+  }
+
+  /**
+   * Test that an item from a request that started before a flush is invalid.
+   */
+  public function testFlushAppliesToItemsDuringRequest() {
+    $bin = $this->uniqueBin();
+    $cache = new BackdropMemcache($bin);
+    // Started after this request, as seen in whole seconds, but before the flush.
+    $this->setOtherRequestItem($bin, 'before', microtime(TRUE));
+    usleep(1000);
+    $cache->flush();
+    usleep(1000);
+    // This item is in the same second as the flush, but started after it.
+    $this->setOtherRequestItem($bin, 'after', microtime(TRUE));
+
+    $cache = new BackdropMemcache($bin);
+    $this->assertFalse($cache->get('before'), 'Item from a request started before the flush is invalid.');
+    $this->assertTrue($cache->get('after'), 'Item from a request started after the flush is valid.');
+  }
+
+  /**
+   * Test that garbage collection is as accurate as a flush.
+   */
+  public function testGarbageCollectionAppliesToItemsDuringRequest() {
+    $bin = $this->uniqueBin();
+    $cache = new BackdropMemcache($bin);
+    $this->setOtherRequestItem($bin, 'before', microtime(TRUE), CACHE_TEMPORARY);
+    usleep(1000);
+    $cache->garbageCollection();
+    usleep(1000);
+    $this->setOtherRequestItem($bin, 'after', microtime(TRUE), CACHE_TEMPORARY);
+
+    $cache = new BackdropMemcache($bin);
+    $this->assertFalse($cache->get('before'), 'Temporary item from before garbage collection is invalid.');
+    $this->assertTrue($cache->get('after'), 'Temporary item from after garbage collection is valid.');
+  }
+
+}
+
+/**
  * Tests memcache stampede protection.
  */
 class MemcacheStampedeProtection extends MemcacheTestCase {
