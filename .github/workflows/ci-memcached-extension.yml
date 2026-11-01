@@ -1,4 +1,4 @@
-name: CI
+name: CI (memcached extension)
 
 on:
   push:
@@ -9,17 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  syntax:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.3"
-          coverage: none
-      - name: PHP syntax
-        run: git ls-files '*.php' '*.module' '*.inc' '*.install' '*.test' | xargs -n1 php -l
-
   tests:
     runs-on: ubuntu-24.04
     steps:
